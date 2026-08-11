@@ -1,0 +1,2347 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AL PRO — Finans İşletim Sistemi</title>
+<style>
+:root{
+  color-scheme: dark;
+  --page:#0d0d0d; --surface:#1a1a19; --surface-2:#222221; --sidebar:#111110;
+  --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --baseline:#383835; --ring:rgba(255,255,255,.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--page); color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:14px; line-height:1.5;
+}
+.app{display:flex; min-height:100vh}
+
+/* ---------- sidebar ---------- */
+.sidebar{
+  width:224px; flex:0 0 224px; background:var(--sidebar);
+  border-right:1px solid var(--ring); padding:20px 12px 16px;
+  display:flex; flex-direction:column; gap:18px; position:sticky; top:0; height:100vh;
+}
+.logo{padding:0 10px}
+.logo b{font-size:22px; letter-spacing:.5px}
+.logo span{display:block; color:var(--muted); font-size:11.5px; margin-top:2px}
+nav{display:flex; flex-direction:column; gap:2px}
+nav button{
+  all:unset; cursor:pointer; padding:9px 12px; border-radius:9px;
+  color:var(--ink-2); font-size:13.5px; display:flex; gap:9px; align-items:center;
+}
+nav button:hover{background:rgba(255,255,255,.05); color:var(--ink)}
+nav button.active{background:rgba(57,135,229,.16); color:#bcd7f7}
+nav button .ic{width:17px; text-align:center; opacity:.9}
+.sidebar-foot{margin-top:auto; color:var(--muted); font-size:11px; padding:0 10px; border-top:1px solid var(--grid); padding-top:12px}
+
+/* ---------- main / topbar ---------- */
+main{flex:1; min-width:0; padding:18px 22px 40px}
+.topbar{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:16px}
+.topbar .date{font-size:15px; font-weight:600}
+.chips{display:flex; gap:6px; flex-wrap:wrap}
+.chip{
+  display:inline-flex; align-items:center; gap:6px; font-size:11.5px;
+  padding:3px 9px; border-radius:99px; border:1px solid var(--ring); color:var(--ink-2);
+  background:var(--surface);
+}
+.chip .dot{width:7px;height:7px;border-radius:50%}
+.chip.live .dot{background:var(--good)} .chip.live{color:#9fd89f}
+.chip.demo .dot{background:var(--warn)} .chip.demo{color:#f3d48a}
+.btn{
+  all:unset; cursor:pointer; background:var(--s1); color:#fff; font-weight:600;
+  padding:8px 14px; border-radius:9px; font-size:13px;
+}
+.btn:hover{filter:brightness(1.1)}
+.btn.ghost{background:transparent; border:1px solid var(--ring); color:var(--ink-2); font-weight:500}
+.btn.ghost:hover{background:rgba(255,255,255,.05); color:var(--ink)}
+.btn.small{padding:5px 10px; font-size:12px}
+.btn.danger{background:transparent; border:1px solid var(--ring); color:var(--s8)}
+.ml-auto{margin-left:auto}
+
+/* ---------- layout blocks ---------- */
+.tab{display:none}
+.tab.active{display:block}
+.grid{display:grid; gap:14px}
+.tiles{grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); margin-bottom:14px}
+.cols-2{grid-template-columns:1fr 1fr}
+.cols-3{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+@media (max-width:1100px){.cols-2{grid-template-columns:1fr}}
+.card{
+  background:var(--surface); border:1px solid var(--ring); border-radius:var(--radius);
+  padding:16px 18px;
+}
+.card h3{font-size:13px; font-weight:600; color:var(--ink-2); margin-bottom:10px; letter-spacing:.2px}
+.card .sub{color:var(--muted); font-size:11.5px}
+.tile .label{color:var(--muted); font-size:12px}
+.tile .value{font-size:24px; font-weight:700; margin-top:4px}
+.tile .delta{font-size:12.5px; margin-top:3px}
+.up{color:var(--good)} .down{color:var(--crit)}
+.neutral{color:var(--ink-2)}
+
+/* ---------- tables ---------- */
+table{width:100%; border-collapse:collapse}
+th{color:var(--muted); font-weight:500; font-size:11.5px; text-align:left; padding:6px 8px; border-bottom:1px solid var(--grid)}
+td{padding:8px; border-bottom:1px solid var(--grid); font-size:13px; vertical-align:middle}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+tr:hover td{background:rgba(255,255,255,.025)}
+.sym{font-weight:700}
+.tag{font-size:10.5px; color:var(--muted); background:var(--surface-2); border:1px solid var(--ring); padding:1px 7px; border-radius:99px; white-space:nowrap}
+.src{font-size:10.5px; color:var(--muted)}
+
+/* ---------- forms ---------- */
+input,select{
+  background:var(--surface-2); border:1px solid var(--ring); color:var(--ink);
+  border-radius:8px; padding:7px 10px; font-size:13px; font-family:inherit;
+}
+input:focus,select:focus{outline:2px solid rgba(57,135,229,.5)}
+.form-row{display:flex; gap:8px; flex-wrap:wrap; align-items:end}
+.form-row label{display:flex; flex-direction:column; gap:4px; font-size:11.5px; color:var(--muted)}
+dialog{
+  background:var(--surface); color:var(--ink); border:1px solid var(--ring);
+  border-radius:var(--radius); padding:20px; max-width:360px;
+}
+dialog.wide{max-width:780px; width:92%}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+.dhead{display:flex; align-items:center; gap:10px; margin-bottom:12px}
+.dhead .x{all:unset; cursor:pointer; margin-left:auto; color:var(--muted); font-size:18px; padding:2px 8px; border-radius:8px}
+.dhead .x:hover{background:rgba(255,255,255,.06); color:var(--ink)}
+.dstats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:14px}
+.dstat{background:var(--surface-2); border:1px solid var(--ring); border-radius:10px; padding:10px 12px}
+.dstat .l{color:var(--muted); font-size:11px}
+.dstat .v{font-size:15px; font-weight:700; margin-top:2px; font-variant-numeric:tabular-nums}
+.clickable{cursor:pointer}
+.clickable:hover{text-decoration:underline; text-decoration-color:var(--muted)}
+textarea{
+  background:var(--surface-2); border:1px solid var(--ring); color:var(--ink);
+  border-radius:8px; padding:8px 10px; font-size:13px; font-family:inherit; width:100%; min-height:64px; resize:vertical;
+}
+
+/* ---------- briefing ---------- */
+.briefing-text{
+  white-space:pre-wrap; font-size:13.5px; line-height:1.65; color:var(--ink);
+  background:var(--surface-2); border:1px solid var(--ring); border-radius:10px; padding:18px;
+}
+.hint{color:var(--muted); font-size:12px; margin-top:8px}
+
+/* ---------- misc ---------- */
+.legend{display:flex; flex-direction:column; gap:7px; font-size:12.5px}
+.legend .row{display:flex; align-items:center; gap:8px}
+.legend .swatch{width:10px;height:10px;border-radius:3px}
+.legend .name{color:var(--ink-2)}
+.legend .val{margin-left:auto; font-variant-numeric:tabular-nums}
+.spark{display:block}
+.mini-list .row{display:flex; gap:8px; padding:7px 0; border-bottom:1px solid var(--grid); align-items:center}
+.mini-list .row:last-child{border-bottom:none}
+.footer-note{color:var(--muted); font-size:11.5px; margin-top:18px; border-top:1px solid var(--grid); padding-top:10px}
+.tv-box{height:460px; border-radius:10px; overflow:hidden; border:1px solid var(--ring); background:var(--surface-2)}
+.tv-box.tall{height:520px}
+.offline-note{padding:24px; color:var(--muted); text-align:center}
+.help h4{margin:14px 0 6px; font-size:13.5px}
+.help p{color:var(--ink-2); font-size:13px; margin-bottom:6px}
+.kbd{background:var(--surface-2); border:1px solid var(--ring); padding:1px 6px; border-radius:6px; font-size:12px}
+a{color:#8ab8ee}
+
+/* ---------- telefon / dar ekran ---------- */
+@media (max-width:860px){
+  .app{flex-direction:column}
+  .sidebar{position:static; height:auto; width:100%; flex:0 0 auto;
+    flex-direction:row; align-items:center; gap:10px; padding:10px 12px;
+    border-right:none; border-bottom:1px solid var(--ring)}
+  .logo b{font-size:17px}
+  .logo span{display:none}
+  nav{flex-direction:row; overflow-x:auto; flex:1; gap:4px; scrollbar-width:none}
+  nav::-webkit-scrollbar{display:none}
+  nav button{white-space:nowrap; padding:7px 10px; font-size:12.5px}
+  nav button .ic{display:none}
+  .sidebar-foot{display:none}
+  main{padding:12px}
+  .topbar{gap:8px}
+  .topbar .date{font-size:13px; width:100%}
+  .tiles{grid-template-columns:1fr 1fr}
+  .tile .value{font-size:19px}
+  dialog.wide{width:96%; padding:14px}
+  .dstats{grid-template-columns:1fr 1fr}
+  .tv-box{height:380px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo"><b>AL PRO</b><span>Finans İşletim Sistemi</span></div>
+    <nav id="nav">
+      <button data-tab="overview" class="active"><span class="ic">◧</span>Genel Bakış</button>
+      <button data-tab="markets"><span class="ic">◔</span>Piyasalar</button>
+      <button data-tab="portfolio"><span class="ic">▤</span>Portföy</button>
+      <button data-tab="briefing"><span class="ic">☼</span>Sabah Brifingi</button>
+      <button data-tab="analysis"><span class="ic">◭</span>Grafik &amp; Tarama</button>
+      <button data-tab="tools"><span class="ic">⏰</span>Alarm &amp; Senaryo</button>
+      <button data-tab="data"><span class="ic">⚙</span>Veri &amp; Ayarlar</button>
+      <button data-tab="help"><span class="ic">?</span>Yardım</button>
+    </nav>
+    <div class="sidebar-foot">Bu uygulama bilgilendirme amaçlıdır; yatırım tavsiyesi değildir. v0.9 · Sprint 3</div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <div class="date" id="todayLine">—</div>
+      <span class="chip demo" id="dirtyBadge" style="display:none" title="Değişiklikler dosyaya kaydedilmedi"><span class="dot"></span>kaydedilmedi</span>
+      <div class="chips" id="statusChips"></div>
+      <button class="btn ghost ml-auto" id="autoBtn" title="60 saniyede bir otomatik yenile">⏱ Oto: Kapalı</button>
+      <button class="btn" id="refreshBtn">⟳ Verileri Yenile</button>
+    </header>
+
+    <!-- ================= GENEL BAKIŞ ================= -->
+    <section class="tab active" id="tab-overview">
+      <div class="grid tiles" id="tiles"></div>
+      <div class="grid cols-2">
+        <div class="card">
+          <h3>Varlık Dağılımı</h3>
+          <div style="display:flex; gap:18px; align-items:center; flex-wrap:wrap">
+            <svg id="donut" width="170" height="170" viewBox="0 0 170 170" role="img" aria-label="Varlık sınıfı dağılımı"></svg>
+            <div class="legend" id="donutLegend" style="flex:1; min-width:180px"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Günün Hareketleri <span class="sub">(fiyatı güncellenen varlıklar)</span></h3>
+          <div class="mini-list" id="movers"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>Portföy Değer Geçmişi <span class="sub" id="histNote"></span></h3>
+        <div id="histWrap"><svg id="histChart" width="100%" height="170" viewBox="0 0 760 170" preserveAspectRatio="none" role="img" aria-label="Portföy değer geçmişi"></svg></div>
+        <div class="hint" id="histHint"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>Brifing Özeti</h3>
+        <div id="briefTeaser" class="hint" style="font-size:13px"></div>
+        <button class="btn ghost small" style="margin-top:10px" onclick="openTab('briefing')">Brifingin tamamını aç →</button>
+      </div>
+    </section>
+
+    <!-- ================= PİYASALAR ================= -->
+    <section class="tab" id="tab-markets">
+      <div class="grid cols-3">
+        <div class="card"><h3>Döviz</h3><table id="fxTable"></table></div>
+        <div class="card"><h3>Altın</h3><table id="goldTable"></table><div class="hint" id="goldNote"></div></div>
+        <div class="card"><h3>Kripto <span class="sub">7 günlük eğilimle</span></h3><table id="cryptoTable"></table></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>Kripto Grafiği — 30 Gün <span class="sub" id="cryptoChartNote"></span></h3>
+        <div style="display:flex; gap:8px; margin-bottom:8px">
+          <button class="btn ghost small" data-csym="BTC" onclick="renderCryptoChart('BTC')">Bitcoin</button>
+          <button class="btn ghost small" data-csym="ETH" onclick="renderCryptoChart('ETH')">Ethereum</button>
+        </div>
+        <div style="position:relative">
+          <svg id="cryptoChart" width="100%" height="240" viewBox="0 0 760 240" preserveAspectRatio="none" role="img" aria-label="30 günlük fiyat grafiği"></svg>
+          <div id="chartTip" style="position:absolute; display:none; background:var(--surface-2); border:1px solid var(--ring); border-radius:8px; padding:6px 10px; font-size:12px; pointer-events:none; white-space:nowrap"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>BIST İzleme Listesi</h3>
+        <table id="bistTable"></table>
+        <div class="form-row" style="margin-top:10px">
+          <label>Kod<input id="addSymCode" placeholder="örn. GARAN" maxlength="8" style="width:100px; text-transform:uppercase"></label>
+          <label>Ad<input id="addSymName" placeholder="Garanti BBVA" style="width:160px"></label>
+          <label>Tür
+            <select id="addSymCls">
+              <option value="equity_bist">BIST hissesi</option>
+              <option value="fund_tefas">Yatırım fonu</option>
+              <option value="gold">Altın/kıymetli</option>
+              <option value="crypto">Kripto</option>
+            </select>
+          </label>
+          <label>Güncel Fiyat (₺)<input id="addSymPrice" type="number" step="any" min="0" style="width:110px"></label>
+          <button class="btn ghost" id="addSymBtn">+ İzlemeye Ekle</button>
+        </div>
+        <div class="hint" id="addSymMsg"></div>
+        <div class="hint">BIST fiyatları için lisanslı gerçek zamanlı veri Faz 3'te geliyor (vendör anlaşması). Şimdilik fiyatlar DEMO/elle giriştir — satırdaki ✎ ile güncelleyebilirsin. Eklediğin hisseler portföyde de işlem görebilir. Canlı grafikler için <a href="#" onclick="openTab('analysis');return false">Grafik &amp; Tarama</a> sekmesini kullan.</div>
+      </div>
+    </section>
+
+    <!-- ================= PORTFÖY ================= -->
+    <section class="tab" id="tab-portfolio">
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap">
+        <div class="chips" id="acctChips"></div>
+        <button class="btn ghost small ml-auto" id="ccyToggle" title="Değerleri dolar bazında göster">Görünüm: ₺ → $</button>
+      </div>
+      <div class="grid tiles" id="pfTiles"></div>
+      <div class="card">
+        <h3>Pozisyonlar <span class="sub" id="ccyNote"></span></h3>
+        <div style="overflow-x:auto"><table id="posTable"></table></div>
+      </div>
+      <div class="grid cols-2" style="margin-top:14px">
+        <div class="card">
+          <h3>Getiri Analizi</h3>
+          <div class="mini-list" id="perfList"></div>
+          <div class="form-row" style="margin-top:10px">
+            <label>Enflasyon varsayımı (yıllık %)<input id="inflInput" type="number" step="any" min="0" style="width:110px" placeholder="örn. 35"></label>
+            <button class="btn ghost small" id="inflSave">Uygula</button>
+            <span class="hint" id="inflOut" style="margin:0"></span>
+          </div>
+          <div class="hint">Yıllıklandırılmış getiri, tüm alış/satış/temettü nakit akışları ve bugünkü portföy değeri üzerinden para-ağırlıklı (iç verim oranı) yöntemiyle hesaplanır. Reel getiri, senin girdiğin enflasyon varsayımına göredir. Kısa geçmişlerde yıllıklandırma yanıltıcı olabilir.</div>
+        </div>
+        <div class="card">
+          <h3>Kıyas: Ya Aynı Parayla Dolar Alsaydın?</h3>
+          <p class="hint" style="margin-bottom:10px">Her alış/satış tarihindeki gerçek USD/TRY kuruyla (ECB gün sonu, frankfurter.app) hesaplanır — internet bağlantısı gerekir.</p>
+          <button class="btn ghost" id="benchBtn">Hesapla</button>
+          <div class="mini-list" id="benchResult" style="margin-top:8px"></div>
+        </div>
+      </div>
+      <div class="grid cols-2" style="margin-top:14px">
+        <div class="card">
+          <h3>İşlem Ekle</h3>
+          <div class="form-row">
+            <label>Sembol
+              <select id="txSymbol"></select>
+            </label>
+            <label>Tür
+              <select id="txSide"><option value="buy">Alış</option><option value="sell">Satış</option><option value="div">Temettü</option></select>
+            </label>
+            <label>Adet<input id="txQty" type="number" step="any" min="0" style="width:110px"></label>
+            <label id="txPriceLabel">Birim Fiyat (₺)<input id="txPrice" type="number" step="any" min="0" style="width:120px"></label>
+            <label>Komisyon (₺)<input id="txFee" type="number" step="any" value="0" style="width:100px"></label>
+            <label>Tarih<input id="txDate" type="date"></label>
+            <label>Hesap<select id="txAcct" style="min-width:100px"></select></label>
+            <label id="txAcctNewLabel" style="display:none">Yeni hesap adı<input id="txAcctNew" placeholder="örn. BES" maxlength="30" style="width:110px"></label>
+            <button class="btn" id="txAdd">Ekle</button>
+          </div>
+          <div class="hint" id="txMsg"></div>
+        </div>
+        <div class="card">
+          <h3>Kaydet &amp; Yükle</h3>
+          <p class="hint" style="margin-bottom:10px">İşlemlerin, alarmların ve eklediğin hisseler tek veri dosyasında saklanır. <b>Dosyaya Kaydet</b> ile bilgisayarına yaz (örn. Belgeler'e <i>alpro-verilerim.json</i>); uygulamayı sonraki açışında <b>Dosya Aç</b> ile geri yükle.</p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <button class="btn" id="saveFileBtn">💾 Dosyaya Kaydet</button>
+            <button class="btn ghost" id="openFileBtn">📂 Dosya Aç</button>
+            <label class="btn ghost" style="cursor:pointer">⬆ İçe Aktar<input id="importFile" type="file" accept=".json" style="display:none"></label>
+            <label class="btn ghost" style="cursor:pointer" title="Aracı kurum dökümünü şablona göre aktar">📄 CSV İçe Aktar<input id="csvFile" type="file" accept=".csv,.txt" style="display:none"></label>
+            <button class="btn ghost" id="csvTemplate">Şablon CSV</button>
+            <button class="btn ghost" id="autosaveBtn" title="Dosya seçildikten sonra her değişikliği kendiliğinden kaydeder">Oto-kaydet: Açık</button>
+            <button class="btn danger" id="resetBtn">Demo portföye dön</button>
+          </div>
+          <div class="hint" id="saveMsg"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>İşlem Geçmişi</h3>
+        <div style="overflow-x:auto"><table id="txTable"></table></div>
+      </div>
+    </section>
+
+    <!-- ================= BRİFİNG ================= -->
+    <section class="tab" id="tab-briefing">
+      <div class="card" style="margin-bottom:14px">
+        <h3>Haftalık Rapor <span class="sub">portföyünün 7 günlük özeti</span></h3>
+        <div style="display:flex; gap:8px; margin-bottom:10px">
+          <button class="btn ghost" id="weeklyGen">Raporu Oluştur</button>
+          <button class="btn ghost" id="weeklyCopy" style="display:none">Kopyala</button>
+          <button class="btn ghost" id="weeklyDl" style="display:none">⬇ İndir (.txt)</button>
+        </div>
+        <div class="briefing-text" id="weeklyText" style="display:none"></div>
+      </div>
+      <div class="card">
+        <h3>Sabah Brifingi <span class="sub" id="briefMeta"></span></h3>
+        <div class="briefing-text" id="briefText">Hazırlanıyor…</div>
+        <div style="display:flex; gap:8px; margin-top:12px">
+          <button class="btn" id="briefRegen">Yeniden Oluştur</button>
+          <button class="btn ghost" id="briefCopy">Kopyala</button>
+        </div>
+        <div class="hint">Brifingteki her sayı, uygulamadaki veri katmanından gelir; kaynak ve zaman notları metnin içindedir. LLM destekli doğal dilli sürüm, API anahtarıyla sunucu sürümünde etkinleşir (yol haritası Faz 1 sonu).</div>
+      </div>
+    </section>
+
+    <!-- ================= GRAFİK & TARAMA ================= -->
+    <section class="tab" id="tab-analysis">
+      <div class="card">
+        <h3>Gelişmiş Grafik <span class="sub">TradingView · BIST verisi gecikmeli olabilir</span></h3>
+        <div class="form-row" style="margin-bottom:10px">
+          <label>Sembol
+            <select id="tvSymbol">
+              <option value="BIST:XU100">BIST 100 Endeksi</option>
+              <option value="BIST:THYAO">THYAO — Türk Hava Yolları</option>
+              <option value="BIST:ASELS">ASELS — Aselsan</option>
+              <option value="BIST:TCELL">TCELL — Turkcell</option>
+              <option value="BIST:GARAN">GARAN — Garanti BBVA</option>
+              <option value="FX_IDC:USDTRY">USD/TRY</option>
+              <option value="BITSTAMP:BTCUSD">BTC/USD</option>
+              <option value="OANDA:XAUUSD">Altın (ons, USD)</option>
+            </select>
+          </label>
+          <button class="btn" id="tvLoad">Grafiği Yükle</button>
+        </div>
+        <div class="tv-box" id="tvChart"><div class="offline-note">Grafik, "Grafiği Yükle" ile internet bağlantısı üzerinden gelir.</div></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>BIST Hisse Taraması <span class="sub">TradingView Screener · temel + teknik kolonlar</span></h3>
+        <div class="tv-box tall" id="tvScreener"><div class="offline-note">Tarama tablosu, grafikle birlikte yüklenir.</div></div>
+      </div>
+    </section>
+
+    <!-- ================= ALARM & SENARYO ================= -->
+    <section class="tab" id="tab-tools">
+      <div class="card">
+        <h3>Fiyat Alarmları</h3>
+        <div class="form-row">
+          <label>Varlık<select id="alSymbol"></select></label>
+          <label>Koşul
+            <select id="alDir"><option value="above">üstüne çıkarsa</option><option value="below">altına inerse</option></select>
+          </label>
+          <label>Eşik Fiyat (₺)<input id="alLevel" type="number" step="any" min="0" style="width:130px"></label>
+          <button class="btn" id="alAdd">Alarm Kur</button>
+          <button class="btn ghost" id="alNotify">🔔 Bildirim izni</button>
+        </div>
+        <div class="hint" id="alMsg"></div>
+        <div style="overflow-x:auto; margin-top:10px"><table id="alTable"></table></div>
+        <div class="hint">Alarmlar bu sayfa açıkken, veriler her yenilendiğinde kontrol edilir. Bildirim izni verirsen tetiklenen alarm tarayıcı bildirimi olarak da gelir. Sayfa kapalıyken çalışan sunucu tabanlı alarmlar yol haritasında Faz 2'de.</div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>Senaryo Analizi <span class="sub">“şu olursa portföyüm ne olur?”</span></h3>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px" id="scPresets">
+          <button class="btn ghost small" data-sc="fx:10">USD/TRY %+10</button>
+          <button class="btn ghost small" data-sc="fx:-10">USD/TRY %-10</button>
+          <button class="btn ghost small" data-sc="crypto:-20">Kripto %-20</button>
+          <button class="btn ghost small" data-sc="crypto:20">Kripto %+20</button>
+          <button class="btn ghost small" data-sc="equity_bist:-10">BIST %-10</button>
+          <button class="btn ghost small" data-sc="equity_bist:10">BIST %+10</button>
+          <button class="btn ghost small" data-sc="gold:10">Altın %+10</button>
+        </div>
+        <div class="form-row" style="margin-bottom:10px">
+          <label>Özel: Varlık / Sınıf<select id="scTarget"></select></label>
+          <label>Değişim %<input id="scPct" type="number" step="any" style="width:100px" placeholder="-15"></label>
+          <button class="btn ghost" id="scAdd">Ekle</button>
+          <button class="btn ghost" id="scClear">Temizle</button>
+        </div>
+        <div id="scActive" class="hint" style="margin-bottom:8px"></div>
+        <div style="overflow-x:auto"><table id="scTable"></table></div>
+        <div class="hint">Senaryolar mevcut fiyatlara uygulanan varsayımsal şoklardır; tahmin ya da tavsiye değildir. Birden fazla şok aynı anda uygulanabilir (aynı varlığa gelenler toplanır).</div>
+      </div>
+    </section>
+
+    <!-- ================= VERİ & AYARLAR ================= -->
+    <section class="tab" id="tab-data">
+      <div class="card">
+        <h3>Veri Kaynakları Durumu</h3>
+        <table id="srcTable"></table>
+        <div class="hint">CANLI: veriler internetten az önce çekildi. DEMO: kaynağa ulaşılamadı ya da lisans gerekiyor; açıkça etiketli örnek değerler gösteriliyor. Yenile düğmesi her kaynağı tekrar dener.</div>
+      </div>
+      <div class="grid cols-2" style="margin-top:14px">
+        <div class="card">
+          <h3>Ayarlar</h3>
+          <div class="form-row">
+            <label>Adın (brifing hitabı)<input id="setName" style="width:160px"></label>
+            <button class="btn ghost" id="setSave">Kaydet</button>
+          </div>
+          <div class="hint" id="setMsg"></div>
+        </div>
+        <div class="card">
+          <h3>Yol Haritası Durumu</h3>
+          <div class="mini-list" id="roadmapList"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>Sunucu Bağlantısı <span class="sub">Faz 1 — kendi AL PRO sunucuna yedekle</span></h3>
+        <p class="hint" style="margin-bottom:10px">Sunucunu kurduğunda (kurulum rehberi: DEPLOY_TR.md) adresini ve erişim anahtarını gir; verilerini tek tıkla sunucuya yedekler, başka cihazdan geri yüklersin. Anahtar güvenlik gereği dosyaya kaydedilmez, her oturumda yeniden girilir.</p>
+        <div class="form-row">
+          <label>Sunucu Adresi<input id="srvUrl" placeholder="https://alpro-xxxx.onrender.com" style="width:260px"></label>
+          <label>Erişim Anahtarı<input id="srvTok" type="password" style="width:170px"></label>
+          <button class="btn" id="srvPush">⬆ Sunucuya Yedekle</button>
+          <button class="btn ghost" id="srvPull">⬇ Sunucudan Geri Yükle</button>
+        </div>
+        <div class="hint" id="srvMsg"></div>
+      </div>
+    </section>
+
+    <!-- ================= YARDIM ================= -->
+    <section class="tab" id="tab-help">
+      <div class="card help">
+        <h3>AL PRO'yu Kullanma Rehberi</h3>
+        <h4>Bu dosya nedir?</h4>
+        <p>AL PRO'nun çalışan uygulamasıdır. Kurulum gerekmez: dosyayı çift tıklayıp tarayıcında (Chrome/Edge) açman yeterli. İnternet varsa kur, altın ve kripto fiyatları canlı gelir; grafik ve tarama sekmesi TradingView üzerinden gerçek BIST grafiklerini gösterir.</p>
+        <h4>İlk 3 adım</h4>
+        <p>1) Sağ üstten <span class="kbd">⟳ Verileri Yenile</span>'ye bas — hangi kaynakların CANLI olduğunu üstteki rozetlerde görürsün.<br>2) <b>Portföy</b> sekmesinde örnek portföyü sil ya da kendi işlemlerini gir (aldığın varlık, adet, fiyat).<br>3) <b>Sabah Brifingi</b> sekmesinden günün özetini al.</p>
+        <h4>Verilerim kaybolur mu?</h4>
+        <p>Kaydetmezsen evet: bu sürüm verileri sayfa açıkken bellekte tutar. <b>Portföy → Kaydet &amp; Yükle</b>'den <span class="kbd">💾 Dosyaya Kaydet</span> ile portföyünü, alarmlarını ve eklediğin hisseleri tek dosyaya yaz; sonraki açılışta <span class="kbd">📂 Dosya Aç</span> ile yükle. Kaydedilmemiş değişiklik varsa üst çubukta “kaydedilmedi” rozeti görünür ve sayfayı kapatırken uyarılırsın. Hesaplı, veritabanlı sürüm yol haritasında Faz 1 sonunda.</p>
+        <h4>Alarm ve senaryo ne işe yarar?</h4>
+        <p><b>Alarm:</b> “THYAO 320'nin üstüne çıkarsa haber ver” dersin; veriler yenilendiğinde koşul sağlanınca uygulama (izin verdiysen tarayıcı bildirimiyle) seni uyarır. <b>Senaryo:</b> “Kripto %20 düşerse portföyüm ne olur?” sorusunun cevabını, mevcut rakamlar üzerinden anında hesaplar.</p>
+        <h4>Temettü, getiri ve dolar kıyası</h4>
+        <p>Aldığın temettüleri <b>Portföy → İşlem Ekle</b>'de tür olarak “Temettü” seçip toplam tutarı girerek kaydet; getiri hesabına dahil edilir. <b>Getiri Analizi</b> kartı, tüm nakit akışlarından yıllıklandırılmış getirini (iç verim oranı) hesaplar. <b>Dolar kıyası</b> ise her işlem tarihindeki gerçek kurla “aynı parayla USD alsaydın bugün ne olurdu?” sorusuna cevap verir. Portföy sekmesinin sağ üstünden tüm değerleri dolar bazında da görebilirsin.</p>
+        <h4>Değer geçmişi grafiği nasıl oluşur?</h4>
+        <p>Uygulama her gün açıldığında/yenilendiğinde o günün portföy değerini not eder ve veri dosyana kaydeder. Birkaç gün kullandıktan sonra Genel Bakış'ta servetinin zaman içindeki grafiğini görürsün.</p>
+        <h4>Neden bazı veriler DEMO?</h4>
+        <p>BIST hisse fiyatlarının uygulama içinde canlı gösterimi Borsa İstanbul lisansı gerektirir (yol haritası Faz 3). O güne kadar hisse fiyatlarını elle güncelleyebilir, canlı grafikleri Grafik &amp; Tarama sekmesinden izleyebilirsin. Gram altın, canlı modda PAXG (altına dayalı token) fiyatından yaklaşık hesaplanır ve böyle etiketlenir.</p>
+        <h4>Bu uygulama tavsiye verir mi?</h4>
+        <p>Hayır. AL PRO mevcut durumu açıklar, analiz eder; kişiye özel al/sat önerisi vermez. Tüm içerik bilgilendirme amaçlıdır.</p>
+      </div>
+    </section>
+
+    <div class="footer-note">AL PRO v0.9 · Veriler: open.er-api.com (kur) · CoinGecko (kripto/altın yaklaşımı) · TradingView (grafik/tarama) · BIST fiyatları DEMO ya da elle giriş — lisanslı canlı veri Faz 3'te. Bu içerik bilgilendirme amaçlıdır; yatırım tavsiyesi değildir.</div>
+  </main>
+</div>
+
+<dialog id="txEditDialog">
+  <h3 style="margin-bottom:6px">İşlemi Düzenle</h3>
+  <div class="hint" id="teInfo" style="margin-bottom:10px"></div>
+  <div class="form-row">
+    <label>Tarih<input id="teDate" type="date"></label>
+    <label>Adet<input id="teQty" type="number" step="any" min="0" style="width:110px"></label>
+    <label id="tePriceLabel">Fiyat (₺)<input id="tePrice" type="number" step="any" min="0" style="width:120px"></label>
+    <label>Komisyon<input id="teFee" type="number" step="any" min="0" style="width:90px"></label>
+  </div>
+  <div class="hint" id="teMsg"></div>
+  <div style="display:flex; gap:8px; margin-top:12px">
+    <button class="btn" id="teSave">Kaydet</button>
+    <button class="btn ghost" id="teCancel">Vazgeç</button>
+  </div>
+</dialog>
+
+<dialog id="detailDialog" class="wide">
+  <div class="dhead">
+    <h3 style="font-size:17px" id="dTitle">—</h3>
+    <span class="tag" id="dClass"></span>
+    <span class="tag" id="dSrc"></span>
+    <button class="x" id="dClose" title="Kapat">✕</button>
+  </div>
+  <div class="dstats" id="dStats"></div>
+  <div class="grid cols-2" style="gap:12px; margin-bottom:12px">
+    <div class="card" style="padding:12px 14px">
+      <h3>Hedef Fiyat</h3>
+      <div class="form-row">
+        <label>Hedef (₺)<input id="dTarget" type="number" step="any" min="0" style="width:120px"></label>
+        <button class="btn small" id="dTargetSave">Kaydet</button>
+        <button class="btn ghost small" id="dTargetClear">Kaldır</button>
+        <button class="btn ghost small" id="dTargetAlarm" title="Hedef fiyata ulaşınca haber ver">⏰ Alarma çevir</button>
+      </div>
+      <div class="hint" id="dTargetInfo"></div>
+    </div>
+    <div class="card" style="padding:12px 14px">
+      <h3>Notların</h3>
+      <textarea id="dNote" placeholder="Bu varlıkla ilgili kendi notların (alım gerekçen, takip ettiğin haberler…)"></textarea>
+      <div style="display:flex; gap:8px; margin-top:8px; align-items:center">
+        <button class="btn ghost small" id="dNoteSave">Notu Kaydet</button>
+        <span class="hint" id="dNoteMsg" style="margin:0"></span>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="padding:12px 14px; margin-bottom:12px">
+    <h3>Bu Varlığın İşlemleri</h3>
+    <div style="overflow-x:auto"><table id="dTxTable"></table></div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap">
+    <button class="btn" id="dChart">📈 Grafikte Aç</button>
+    <a class="btn ghost" id="dKap" target="_blank" rel="noopener" style="display:none">📰 KAP Bildirimleri</a>
+    <button class="btn ghost" id="dClose2">Kapat</button>
+  </div>
+</dialog>
+
+<dialog id="priceDialog">
+  <h3 style="margin-bottom:10px">Fiyat Güncelle — <span id="pdSymbol"></span></h3>
+  <p class="hint" style="margin-bottom:10px">Aracı kurum uygulamandan gördüğün güncel fiyatı gir; "elle giriş" olarak etiketlenir.</p>
+  <div class="form-row">
+    <label>Fiyat (₺)<input id="pdPrice" type="number" step="any" min="0" style="width:140px"></label>
+    <button class="btn" id="pdSave">Kaydet</button>
+    <button class="btn ghost" id="pdCancel">Vazgeç</button>
+  </div>
+</dialog>
+<script>
+/* =====================================================================
+   AL PRO v0.2 — core: state, data layer (live + labeled DEMO), engine
+   İlkeler (yol haritası): sayı yalnızca veri katmanından gelir; DEMO
+   veri her zaman etiketlidir; kişiye özel tavsiye üretilmez.
+   ===================================================================== */
+"use strict";
+
+/* ---------- formatting (tr-TR) ---------- */
+const fmtNum = (n, d = 2) =>
+  Number(n).toLocaleString("tr-TR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtMoney = (n, d = 2) => fmtNum(n, d) + " ₺";
+const fmtPct = (n, signed = true, d = 2) =>
+  "%" + (signed && n > 0 ? "+" : "") + fmtNum(n, d);
+const fmtQty = n => Number(n).toLocaleString("tr-TR", { maximumFractionDigits: 6 });
+const cls = n => (n > 0.0001 ? "up" : n < -0.0001 ? "down" : "neutral");
+const arrow = n => (n > 0.0001 ? "▲" : n < -0.0001 ? "▼" : "•");
+const nowTR = () => new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+
+/* ---------- static catalogs ---------- */
+const ASSET_TR = {
+  equity_bist: "BIST hissesi", fund_tefas: "Yatırım fonu", fx: "Döviz",
+  gold: "Altın", crypto: "Kripto", cash: "Nakit",
+};
+const CLASS_COLORS = { // dataviz categorical slots, fixed order
+  equity_bist: "var(--s1)", crypto: "var(--s2)", gold: "var(--s3)",
+  fund_tefas: "var(--s4)", fx: "var(--s5)", cash: "var(--s6)",
+};
+const INSTRUMENTS = {
+  THYAO:    { name: "Türk Hava Yolları", cls: "equity_bist" },
+  ASELS:    { name: "Aselsan",           cls: "equity_bist" },
+  TCELL:    { name: "Turkcell",          cls: "equity_bist" },
+  "XAU-GRAM": { name: "Gram Altın",      cls: "gold" },
+  BTC:      { name: "Bitcoin",           cls: "crypto", cg: "bitcoin" },
+  ETH:      { name: "Ethereum",          cls: "crypto", cg: "ethereum" },
+  USD:      { name: "ABD Doları",        cls: "fx" },
+  "DMO-FON": { name: "Demo Serbest Fon", cls: "fund_tefas" },
+  NAKIT:    { name: "Nakit (Türk Lirası)", cls: "cash" },
+};
+
+/* ---------- demo fixtures (etiketli) ---------- */
+const DEMO_NOTE = "DEMO verisi — gerçek piyasa verisi değildir";
+const DEMO_QUOTES = {
+  USDTRY:     { price: 47.54,   chg: +0.12, src: "demo" },
+  EURTRY:     { price: 54.73,   chg: -0.08, src: "demo" },
+  THYAO:      { price: 312.50,  chg: +1.21, src: "demo" },
+  ASELS:      { price: 101.20,  chg: -0.88, src: "demo" },
+  TCELL:      { price: 118.40,  chg: +1.02, src: "demo" },
+  "XAU-GRAM": { price: 2735.00, chg: +0.63, src: "demo" },
+  BTC:        { price: 2845000, chg: +1.57, src: "demo", spark: [2760e3, 2801e3, 2775e3, 2820e3, 2790e3, 2801e3, 2845e3] },
+  ETH:        { price: 142000,  chg: -1.32, src: "demo", spark: [146e3, 1439e2, 1451e2, 1445e2, 1448e2, 1439e2, 142e3] },
+  "DMO-FON":  { price: 9.4812,  chg: +0.53, src: "demo" },
+  NAKIT:      { price: 1, chg: null, src: "system" },
+};
+const DEMO_TXS = [
+  { side: "buy",  symbol: "THYAO",    qty: 500,   price: 285.0,    fee: 45,  date: "2026-03-10" },
+  { side: "buy",  symbol: "ASELS",    qty: 300,   price: 92.4,     fee: 25,  date: "2026-04-02" },
+  { side: "buy",  symbol: "XAU-GRAM", qty: 150,   price: 2450.0,   fee: 0,   date: "2026-02-20" },
+  { side: "buy",  symbol: "BTC",      qty: 0.15,  price: 2600000,  fee: 390, date: "2026-05-15" },
+  { side: "buy",  symbol: "USD",      qty: 5000,  price: 38.6,     fee: 0,   date: "2026-01-25" },
+  { side: "buy",  symbol: "DMO-FON",  qty: 40000, price: 8.912,    fee: 0,   date: "2026-06-01" },
+  { side: "sell", symbol: "THYAO",    qty: 100,   price: 305.0,    fee: 12,  date: "2026-07-21" },
+];
+
+/* ---------- app state (bellekte; kalıcılık: veri dosyası) ---------- */
+const state = {
+  userName: "Ali",
+  quotes: JSON.parse(JSON.stringify(DEMO_QUOTES)), // symbol -> {price, chg, src, asof?, spark?}
+  txs: JSON.parse(JSON.stringify(DEMO_TXS)),
+  alerts: [],            // {id, symbol, dir, level, active, firedAt}
+  custom: {},            // kullanıcı eklediği enstrümanlar: sym -> {name}
+  shocks: [],            // aktif senaryo şokları: {target, pct} — target: sınıf adı ya da sembol
+  series: {},            // 30g grafik serileri: sym -> {pts:[[ts,price]], src}
+  history: [],           // günlük portföy değeri: {d:'YYYY-MM-DD', v, c}
+  targets: {},           // sym -> hedef fiyat (₺)
+  notes: {},             // sym -> kullanıcı notu
+  fxHist: {},            // tarih -> USD/TRY (dolar kıyası önbelleği)
+  viewCcy: "TRY",        // portföy görünümü: TRY | USD
+  inflation: null,       // yıllık enflasyon varsayımı (%) — reel getiri için
+  activeAccount: "ALL",  // hesap filtresi: ALL | hesap adı
+  autosave: true,        // dosya seçildikten sonra otomatik kaydet
+  serverUrl: "",         // Faz 1 sunucu adresi (dosyada saklanır; anahtar saklanmaz)
+  dirty: false,
+  fileHandle: null,
+  autoTimer: null,
+  sources: {
+    fx:     { name: "Döviz kurları",        mode: "demo", detail: "open.er-api.com (ücretsiz)", asof: null },
+    crypto: { name: "Kripto (BTC, ETH)",    mode: "demo", detail: "CoinGecko (ücretsiz katman)", asof: null },
+    gold:   { name: "Gram altın",           mode: "demo", detail: "CoinGecko PAXG/ons yaklaşımı", asof: null },
+    bist:   { name: "BIST hisseleri + fon", mode: "demo", detail: "Lisanslı vendör Faz 3'te — elle giriş açık", asof: null },
+  },
+  lastRefresh: null,
+};
+
+/* ---------- data layer: live fetch, labeled fallback ---------- */
+function fetchJson(url, ms = 7000) {
+  return Promise.race([
+    fetch(url, { mode: "cors" }).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms)),
+  ]);
+}
+
+async function refreshFx() {
+  try {
+    const j = await fetchJson("https://open.er-api.com/v6/latest/USD");
+    if (!j.rates || !j.rates.TRY) throw new Error("TRY yok");
+    const usdtry = j.rates.TRY;
+    const eurtry = j.rates.TRY / j.rates.EUR;
+    const prevU = state.quotes.USDTRY.price, prevE = state.quotes.EURTRY.price;
+    state.quotes.USDTRY = { price: usdtry, chg: state.sources.fx.mode === "live" ? ((usdtry / prevU - 1) * 100) : null, src: "live" };
+    state.quotes.EURTRY = { price: eurtry, chg: state.sources.fx.mode === "live" ? ((eurtry / prevE - 1) * 100) : null, src: "live" };
+    state.sources.fx = { ...state.sources.fx, mode: "live", asof: j.time_last_update_utc || new Date().toISOString() };
+  } catch (e) {
+    if (state.sources.fx.mode !== "live") state.sources.fx.mode = "demo";
+    console.warn("fx live alınamadı:", e.message);
+  }
+}
+
+async function refreshCrypto() {
+  try {
+    const j = await fetchJson(
+      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,pax-gold&vs_currencies=try&include_24hr_change=true"
+    );
+    if (!j.bitcoin || !j.bitcoin.try) throw new Error("veri eksik");
+    const asof = new Date().toISOString();
+    state.quotes.BTC = { ...state.quotes.BTC, price: j.bitcoin.try, chg: j.bitcoin.try_24h_change ?? null, src: "live" };
+    state.quotes.ETH = { ...state.quotes.ETH, price: j.ethereum.try, chg: j.ethereum.try_24h_change ?? null, src: "live" };
+    state.sources.crypto = { ...state.sources.crypto, mode: "live", asof };
+    if (j["pax-gold"] && j["pax-gold"].try) {
+      const gram = j["pax-gold"].try / 31.1035;
+      state.quotes["XAU-GRAM"] = { price: gram, chg: j["pax-gold"].try_24h_change ?? null, src: "live-approx" };
+      state.sources.gold = { ...state.sources.gold, mode: "live", asof };
+    }
+    // 7g sparklines (ayrı uçlar; başarısız olursa mevcut kalır)
+    for (const [sym, id] of [["BTC", "bitcoin"], ["ETH", "ethereum"]]) {
+      try {
+        const m = await fetchJson(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=try&days=7`);
+        if (m.prices && m.prices.length > 10) {
+          const step = Math.max(1, Math.floor(m.prices.length / 28));
+          state.quotes[sym].spark = m.prices.filter((_, i) => i % step === 0).map(p => p[1]);
+        }
+      } catch (_) { /* spark isteğe bağlı */ }
+    }
+  } catch (e) {
+    if (state.sources.crypto.mode !== "live") state.sources.crypto.mode = "demo";
+    console.warn("kripto live alınamadı:", e.message);
+  }
+}
+
+async function refreshAll() {
+  const btn = document.getElementById("refreshBtn");
+  btn.disabled = true; btn.textContent = "⟳ Yükleniyor…";
+  await Promise.allSettled([refreshFx(), refreshCrypto()]);
+  state.lastRefresh = new Date();
+  renderAll();
+  btn.disabled = false; btn.textContent = "⟳ Verileri Yenile";
+}
+
+/* ---------- quote helpers ---------- */
+function quoteOf(symbol) {
+  if (symbol === "USD") {
+    const q = state.quotes.USDTRY;
+    return { price: q.price, chg: q.chg, src: q.src };
+  }
+  return state.quotes[symbol] || null;
+}
+function srcLabel(src) {
+  return src === "live" ? "canlı" : src === "live-approx" ? "canlı·yaklaşık"
+    : src === "manual" ? "elle" : src === "system" ? "sabit" : "DEMO";
+}
+
+/* ---------- defter doğrulama (içe aktarma/düzenleme güvenliği) ---------- */
+function validateLedger(txs) {
+  const errors = [];
+  const held = {};
+  for (const tx of [...txs].sort((a, b) => a.date.localeCompare(b.date))) {
+    if (tx.side === "buy") held[tx.symbol] = (held[tx.symbol] || 0) + tx.qty;
+    else if (tx.side === "sell") {
+      const h = held[tx.symbol] || 0;
+      if (tx.qty > h + 1e-9) errors.push(`${tx.symbol} ${tx.date}: satış (${tx.qty}) eldekini (${Math.round(h * 1e6) / 1e6}) aşıyor`);
+      held[tx.symbol] = Math.max(0, h - tx.qty);
+    }
+  }
+  return errors;
+}
+
+/* ---------- CSV içe aktarma ---------- */
+const CSV_TEMPLATE = "﻿tarih;sembol;tur;adet;fiyat;komisyon;hesap\n2026-01-15;THYAO;alis;100;250,50;25;Ana\n2026-02-01;NAKIT;alis;50000;1;0;Ana\n2026-03-10;THYAO;temettu;0;850;0;Ana\n2026-04-01;THYAO;satis;50;295,00;12;Ana\n";
+function parseCsvTransactions(text) {
+  const lines = text.replace(/^﻿/, "").split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (!lines.length) throw new Error("dosya boş");
+  const delim = lines[0].includes(";") ? ";" : ",";
+  const start = /tarih|date/i.test(lines[0]) ? 1 : 0;
+  const num = s => {
+    s = String(s || "").trim();
+    if (!s) return 0;
+    if (s.includes(".") && s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+    else if (s.includes(",")) s = s.replace(",", ".");
+    return parseFloat(s);
+  };
+  const dateNorm = s => {
+    s = String(s || "").trim();
+    const m = /^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/.exec(s);
+    if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+    return s.slice(0, 10);
+  };
+  const sideMap = s => {
+    s = String(s || "").toLowerCase().replace(/[ıİ]/g, "i").replace(/ş/g, "s").replace(/ü/g, "u");
+    if (["alis", "al", "buy", "alim"].includes(s)) return "buy";
+    if (["satis", "sat", "sell", "satim"].includes(s)) return "sell";
+    if (["temettu", "temettü", "div", "dividend", "kar payi"].includes(s)) return "div";
+    return null;
+  };
+  const txs = [], errors = [], newSyms = {};
+  for (let i = start; i < lines.length; i++) {
+    const c = lines[i].split(delim).map(x => x.trim());
+    if (c.length < 5) { errors.push(`satır ${i + 1}: eksik sütun`); continue; }
+    const date = dateNorm(c[0]);
+    const symbol = c[1].toUpperCase();
+    const side = sideMap(c[2]);
+    const qty = num(c[3]);
+    const price = num(c[4]);
+    const fee = num(c[5] || "0");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { errors.push(`satır ${i + 1}: tarih anlaşılamadı (${c[0]})`); continue; }
+    if (!side) { errors.push(`satır ${i + 1}: tür anlaşılamadı (${c[2]})`); continue; }
+    if (!(price > 0)) { errors.push(`satır ${i + 1}: fiyat/tutar geçersiz`); continue; }
+    if (side !== "div" && !(qty > 0)) { errors.push(`satır ${i + 1}: adet geçersiz`); continue; }
+    if (!/^[A-Z0-9\-]{2,10}$/.test(symbol)) { errors.push(`satır ${i + 1}: sembol geçersiz (${symbol})`); continue; }
+    if (!(symbol in INSTRUMENTS)) newSyms[symbol] = price;
+    const acct = (c[6] || "").trim().slice(0, 30) || "Ana";
+    txs.push(side === "div"
+      ? { side, symbol, qty: 0, price, fee: 0, date, acct }
+      : { side, symbol, qty, price, fee, date, acct });
+  }
+  return { txs, errors, newSyms };
+}
+
+/* ---------- hesaplar (çoklu portföy) ---------- */
+function acctOf(tx) { return tx.acct || "Ana"; }
+function accounts() {
+  const set = new Set(state.txs.map(acctOf));
+  set.add("Ana");
+  return ["Ana", ...[...set].filter(a => a !== "Ana").sort((a, b) => a.localeCompare(b, "tr"))];
+}
+function filteredTxs() {
+  return state.activeAccount === "ALL"
+    ? state.txs
+    : state.txs.filter(t => acctOf(t) === state.activeAccount);
+}
+
+/* ---------- portfolio engine (işlem defteri esaslı) ---------- */
+function positionsFromLedger(txs) {
+  const book = {};
+  const sorted = [...txs].sort((a, b) => a.date.localeCompare(b.date));
+  for (const tx of sorted) {
+    const p = (book[tx.symbol] ||= { symbol: tx.symbol, qty: 0, avgCost: 0, realized: 0, dividends: 0 });
+    if (tx.side === "buy") {
+      const total = p.avgCost * p.qty + tx.price * tx.qty + (tx.fee || 0);
+      p.qty += tx.qty;
+      p.avgCost = p.qty > 0 ? total / p.qty : 0;
+    } else if (tx.side === "div") {
+      p.dividends += tx.price; // price alanı = toplam temettü tutarı (₺)
+    } else {
+      const sellQty = Math.min(tx.qty, p.qty);
+      p.realized += (tx.price - p.avgCost) * sellQty - (tx.fee || 0);
+      p.qty -= sellQty;
+      if (p.qty < 1e-9) p.qty = 0;
+    }
+  }
+  return Object.values(book);
+}
+
+function portfolioSummary(txsOverride) {
+  const src = txsOverride || filteredTxs();
+  const all = positionsFromLedger(src);
+  const totalDividends = all.reduce((t, p) => t + (p.dividends || 0), 0);
+  const positions = all.filter(p => p.qty > 0);
+  let totalValue = 0, totalCost = 0, totalRealized = 0, dayChangeValue = 0, dayChangeBase = 0;
+  for (const p of positions) {
+    const info = INSTRUMENTS[p.symbol] || { name: p.symbol, cls: "equity_bist" };
+    const q = quoteOf(p.symbol);
+    p.name = info.name; p.cls = info.cls;
+    p.price = q ? q.price : null;
+    p.chg = q ? q.chg : null;
+    p.src = q ? q.src : null;
+    if (p.price != null) {
+      p.value = p.qty * p.price;
+      p.cost = p.qty * p.avgCost;
+      p.upl = p.value - p.cost;
+      p.uplPct = p.cost > 0 ? (p.upl / p.cost) * 100 : null;
+      totalValue += p.value; totalCost += p.cost;
+      if (p.chg != null) {
+        dayChangeValue += p.value * (p.chg / 100);
+        dayChangeBase += p.value;
+      }
+    }
+    totalRealized += p.realized;
+  }
+  totalRealized += all.filter(p => p.qty <= 0).reduce((t, p) => t + p.realized, 0);
+  for (const p of positions) p.weight = p.value != null && totalValue > 0 ? (p.value / totalValue) * 100 : null;
+  positions.sort((a, b) => (b.value || 0) - (a.value || 0));
+  const byClass = {};
+  for (const p of positions) if (p.value != null) byClass[p.cls] = (byClass[p.cls] || 0) + p.value;
+  return {
+    positions, totalValue, totalCost,
+    totalUpl: totalValue - totalCost,
+    totalUplPct: totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : null,
+    totalRealized, totalDividends,
+    dayChangePct: dayChangeBase > 0 ? (dayChangeValue / dayChangeBase) * 100 : null,
+    dayChangeCovered: totalValue > 0 ? (dayChangeBase / totalValue) * 100 : 0,
+    byClass,
+  };
+}
+
+/* ---------- para-ağırlıklı yıllıklandırılmış getiri (XIRR) ---------- */
+function xirr(cashflows) {
+  // cashflows: [{t: ms, a: tutar}] — negatif: yatırılan, pozitif: çekilen/bugünkü değer
+  if (!cashflows || cashflows.length < 2) return null;
+  const hasNeg = cashflows.some(c => c.a < 0), hasPos = cashflows.some(c => c.a > 0);
+  if (!hasNeg || !hasPos) return null;
+  const t0 = Math.min(...cashflows.map(c => c.t));
+  const years = c => (c.t - t0) / (365.25 * 86400000);
+  const span = Math.max(...cashflows.map(years));
+  if (span < 14 / 365.25) return null; // 2 haftadan kısa geçmişte yıllıklandırma anlamsız
+  const npv = r => cashflows.reduce((s, c) => s + c.a / Math.pow(1 + r, years(c)), 0);
+  let lo = -0.9999, hi = 10;
+  let flo = npv(lo), fhi = npv(hi);
+  if (isNaN(flo) || isNaN(fhi) || flo * fhi > 0) return null;
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2, fm = npv(mid);
+    if (Math.abs(fm) < 1e-7) return mid;
+    if (flo * fm <= 0) { hi = mid; fhi = fm; } else { lo = mid; flo = fm; }
+  }
+  return (lo + hi) / 2;
+}
+function portfolioXirr(txsOverride) {
+  const src = txsOverride || filteredTxs();
+  const s = portfolioSummary(src);
+  const flows = [];
+  for (const tx of src) {
+    const t = new Date(tx.date + "T12:00:00").getTime();
+    if (tx.side === "buy") flows.push({ t, a: -(tx.qty * tx.price + (tx.fee || 0)) });
+    else if (tx.side === "sell") flows.push({ t, a: tx.qty * tx.price - (tx.fee || 0) });
+    else if (tx.side === "div") flows.push({ t, a: tx.price });
+  }
+  if (s.totalValue > 0) flows.push({ t: Date.now(), a: s.totalValue });
+  const r = xirr(flows);
+  return r == null ? null : r * 100;
+}
+
+/* ---------- portföy değer geçmişi ---------- */
+function updateHistory(summary) {
+  if (!summary || !(summary.totalValue > 0)) return;
+  const day = new Date().toISOString().slice(0, 10);
+  const entry = { d: day, v: Math.round(summary.totalValue), c: Math.round(summary.totalCost) };
+  const last = state.history[state.history.length - 1];
+  if (last && last.d === day) state.history[state.history.length - 1] = entry;
+  else state.history.push(entry);
+  if (state.history.length > 730) state.history = state.history.slice(-730);
+}
+
+/* ---------- dolar kıyası (işlem tarihindeki gerçek kurlarla) ---------- */
+async function histUsdRate(date) {
+  if (state.fxHist[date]) return state.fxHist[date];
+  const j = await fetchJson(`https://api.frankfurter.app/${date}?from=USD&to=TRY`);
+  if (!j.rates || !j.rates.TRY) throw new Error("kur bulunamadı: " + date);
+  state.fxHist[date] = j.rates.TRY;
+  return j.rates.TRY;
+}
+async function usdBenchmark() {
+  const trades = filteredTxs().filter(t => t.side === "buy" || t.side === "sell");
+  if (!trades.length) throw new Error("işlem yok");
+  let usdUnits = 0, investedTry = 0;
+  for (const tx of trades) {
+    const rate = await histUsdRate(tx.date);
+    const amt = tx.qty * tx.price + (tx.side === "buy" ? (tx.fee || 0) : -(tx.fee || 0));
+    if (tx.side === "buy") { usdUnits += amt / rate; investedTry += amt; }
+    else { usdUnits -= (tx.qty * tx.price - (tx.fee || 0)) / rate; }
+  }
+  const nowRate = state.quotes.USDTRY.price;
+  const s = portfolioSummary();
+  const usdNowTry = usdUnits * nowRate;
+  return {
+    usdUnits, usdNowTry, nowRate, nowRateSrc: state.quotes.USDTRY.src,
+    portfolio: s.totalValue, diff: s.totalValue - usdNowTry, investedTry,
+    dates: Object.keys(state.fxHist).length,
+  };
+}
+
+/* ---------- morning briefing (şablon; sayılar veri katmanından) ---------- */
+function buildBriefing() {
+  const s = portfolioSummary();
+  const dateLine = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric", weekday: "long" });
+  const L = [];
+  L.push(`Günaydın ${state.userName} — ${dateLine}`);
+  L.push("");
+  L.push("PİYASA GÖRÜNÜMÜ");
+  const u = state.quotes.USDTRY, e = state.quotes.EURTRY;
+  const srcNote = src => (src === "demo" ? DEMO_NOTE : "kaynak: " + srcLabel(src));
+  L.push(`• Kurlar: USD/TRY ${fmtNum(u.price)} · EUR/TRY ${fmtNum(e.price)}  (${srcNote(u.src)})`);
+  for (const sym of ["BTC", "ETH", "XAU-GRAM"]) {
+    const q = state.quotes[sym];
+    const chg = q.chg != null ? `, günlük ${fmtPct(q.chg)}` : "";
+    L.push(`• ${INSTRUMENTS[sym].name}: ${fmtMoney(q.price, sym === "XAU-GRAM" ? 2 : 0)}${chg}  (${srcNote(q.src)})`);
+  }
+  L.push("");
+  L.push(state.activeAccount === "ALL" ? "PORTFÖYÜN" : `PORTFÖYÜN — ${state.activeAccount} hesabı`);
+  if (s.positions.length === 0) {
+    L.push("• Henüz işlem kaydı yok. Portföy sekmesinden ilk işlemini ekleyebilirsin.");
+  } else {
+    let line = `• Toplam değer: ${fmtMoney(s.totalValue)}`;
+    if (s.totalUplPct != null) line += ` · Açık K/Z: ${fmtMoney(s.totalUpl)} (${fmtPct(s.totalUplPct)})`;
+    L.push(line);
+    if (s.dayChangePct != null)
+      L.push(`• Günlük değişim: ${fmtPct(s.dayChangePct)} (portföyün ${fmtPct(s.dayChangeCovered, false, 0)} kadarını kapsayan güncel fiyatlarla)`);
+    if (s.totalRealized || s.totalDividends)
+      L.push(`• Gerçekleşen K/Z: ${fmtMoney(s.totalRealized, 0)}${s.totalDividends ? ` · Toplam temettü: ${fmtMoney(s.totalDividends, 0)}` : ""}`);
+    for (const p of s.positions) {
+      if (p.price == null) { L.push(`• ${p.symbol}: fiyat verisi yok`); continue; }
+      const w = p.weight != null ? ` · ağırlık ${fmtPct(p.weight, false)}` : "";
+      if (p.cls === "cash") { L.push(`• NAKIT: ${fmtMoney(p.qty, 0)}${w}`); continue; }
+      const chg = p.chg != null ? ` · günlük ${fmtPct(p.chg)}` : "";
+      const upl = p.uplPct != null ? ` · K/Z ${fmtPct(p.uplPct)}` : "";
+      L.push(`• ${p.symbol} (${ASSET_TR[p.cls]}): ${fmtQty(p.qty)} adet · ${fmtMoney(p.price, p.price > 10000 ? 0 : 2)}${chg}${upl}${w}`);
+    }
+  }
+  const highlights = [];
+  const movers = s.positions.filter(p => p.chg != null);
+  if (movers.length) {
+    const top = movers.reduce((a, b) => Math.abs(b.chg) > Math.abs(a.chg) ? b : a);
+    if (Math.abs(top.chg) >= 1) highlights.push(`• Günün en hareketlisi ${top.symbol}: ${fmtPct(top.chg)}.`);
+  }
+  const classEntries = Object.entries(s.byClass);
+  if (classEntries.length && s.totalValue > 0) {
+    const [topCls, val] = classEntries.reduce((a, b) => (b[1] > a[1] ? b : a));
+    const w = (val / s.totalValue) * 100;
+    if (w >= 50) highlights.push(`• Portföyünün ${fmtPct(w, false)} kadarı tek varlık sınıfında (${ASSET_TR[topCls]}) yoğunlaşmış durumda.`);
+  }
+  const fxSensitive = s.positions.filter(p => ["fx", "gold", "crypto"].includes(p.cls)).reduce((t, p) => t + (p.weight || 0), 0);
+  if (fxSensitive >= 30) highlights.push(`• Dövize duyarlı varlıkların (USD, altın, kripto) toplam ağırlığı ${fmtPct(fxSensitive, false)}.`);
+  for (const p of s.positions) {
+    if (p.uplPct != null && Math.abs(p.uplPct) >= 10)
+      highlights.push(`• ${p.symbol} pozisyonu ortalama maliyetinin ${fmtPct(Math.abs(p.uplPct), false)} ${p.uplPct > 0 ? "üzerinde" : "altında"}.`);
+  }
+  if (highlights.length) { L.push(""); L.push("DİKKAT ÇEKENLER"); L.push(...highlights.slice(0, 4)); }
+  L.push("");
+  L.push("VERİ NOTLARI");
+  for (const src of Object.values(state.sources)) {
+    L.push(`• ${src.name}: ${src.mode === "live" ? "CANLI (" + src.detail + ")" : "DEMO — " + src.detail}`);
+  }
+  if (state.lastRefresh) L.push(`• Son yenileme: ${state.lastRefresh.toLocaleTimeString("tr-TR")}`);
+  L.push("");
+  L.push("---");
+  L.push("Bu içerik bilgilendirme amaçlıdır; yatırım tavsiyesi değildir. Yatırım kararlarınızı kendi araştırmanız ve gerekiyorsa yetkili bir yatırım kuruluşunun danışmanlığıyla veriniz.");
+  return L.join("\n");
+}
+
+/* =====================================================================
+   v0.3 çekirdek eklemeleri: kalıcılık, alarmlar, senaryo, seriler
+   ===================================================================== */
+
+/* ---------- dirty / kaydedilmemiş değişiklik ---------- */
+let _autosaveTimer = null;
+function markDirty() {
+  state.dirty = true;
+  const b = document.getElementById("dirtyBadge");
+  if (b) b.style.display = "inline-flex";
+  // otomatik kaydet: dosya bir kez seçildiyse değişiklikleri sessizce yaz
+  if (state.fileHandle && state.autosave) {
+    clearTimeout(_autosaveTimer);
+    _autosaveTimer = setTimeout(() => saveToFile(true), 1500);
+  }
+}
+function markClean() {
+  state.dirty = false;
+  const b = document.getElementById("dirtyBadge");
+  if (b) b.style.display = "none";
+}
+window.addEventListener("beforeunload", e => {
+  if (state.dirty) { e.preventDefault(); e.returnValue = ""; }
+});
+
+/* ---------- veri dosyası (kaydet / aç) ---------- */
+function exportPayload() {
+  return {
+    app: "alpro", version: 5, savedAt: new Date().toISOString(),
+    inflation: state.inflation,
+    serverUrl: state.serverUrl || "",
+    userName: state.userName,
+    txs: state.txs,
+    alerts: state.alerts,
+    customInstruments: state.custom,
+    manualPrices: manualPrices(),
+    history: state.history,
+    targets: state.targets,
+    notes: state.notes,
+  };
+}
+function applyImport(j) {
+  if (!j || j.app !== "alpro" || !Array.isArray(j.txs)) throw new Error("geçersiz AL PRO dosyası");
+  // önce özel enstrümanlar (işlem doğrulaması onlara bakar)
+  state.custom = {};
+  if (j.customInstruments) {
+    for (const [sym, info] of Object.entries(j.customInstruments)) {
+      const code = String(sym).toUpperCase().slice(0, 8);
+      if (!(code in INSTRUMENTS)) {
+        const cls = (info.cls && info.cls in ASSET_TR) ? info.cls : "equity_bist";
+        INSTRUMENTS[code] = { name: String(info.name || code).slice(0, 60), cls, custom: true };
+        state.custom[code] = { name: INSTRUMENTS[code].name, cls };
+        state.quotes[code] = state.quotes[code] || { price: 0, chg: null, src: "manual" };
+      }
+    }
+  }
+  state.txs = j.txs.filter(t =>
+    t.symbol in INSTRUMENTS && t.price > 0 &&
+    ((t.side === "div") || (t.qty > 0 && (t.side === "buy" || t.side === "sell")))
+  );
+  state.history = Array.isArray(j.history)
+    ? j.history.filter(h => h && typeof h.d === "string" && h.v > 0).slice(-730)
+    : [];
+  state.targets = {};
+  if (j.targets) for (const [sym, p] of Object.entries(j.targets))
+    if (sym in INSTRUMENTS && p > 0) state.targets[sym] = Number(p);
+  state.notes = {};
+  if (j.notes) for (const [sym, n] of Object.entries(j.notes))
+    if (sym in INSTRUMENTS && typeof n === "string") state.notes[sym] = n.slice(0, 2000);
+  state.inflation = (typeof j.inflation === "number" && j.inflation >= 0 && j.inflation <= 500) ? j.inflation : null;
+  if (typeof j.serverUrl === "string" && /^https?:\/\//.test(j.serverUrl)) state.serverUrl = j.serverUrl.slice(0, 200);
+  state.alerts = Array.isArray(j.alerts)
+    ? j.alerts.filter(a => a.symbol in INSTRUMENTS && a.level > 0 && (a.dir === "above" || a.dir === "below"))
+    : [];
+  if (j.userName) state.userName = String(j.userName).slice(0, 40);
+  if (j.manualPrices) {
+    for (const [sym, p] of Object.entries(j.manualPrices)) {
+      if (sym in INSTRUMENTS && p > 0)
+        state.quotes[sym] = { ...(state.quotes[sym] || {}), price: p, src: "manual", chg: state.quotes[sym]?.chg ?? null };
+    }
+  }
+}
+const FILE_OPTS = {
+  suggestedName: "alpro-verilerim.json",
+  types: [{ description: "AL PRO veri dosyası", accept: { "application/json": [".json"] } }],
+};
+async function saveToFile(auto = false) {
+  const msg = document.getElementById("saveMsg");
+  const data = JSON.stringify(exportPayload(), null, 2);
+  try {
+    if (window.showSaveFilePicker) {
+      if (!state.fileHandle) {
+        if (auto) return; // otomatik mod, dosya seçtirmez
+        state.fileHandle = await window.showSaveFilePicker(FILE_OPTS);
+      }
+      const w = await state.fileHandle.createWritable();
+      await w.write(data); await w.close();
+      markClean();
+      msg.textContent = (auto ? "Otomatik kaydedildi ✓ " : "Kaydedildi ✓ ") + (state.fileHandle.name || "") + " · " + nowTR();
+      return;
+    }
+  } catch (e) {
+    if (e && e.name === "AbortError") { msg.textContent = "Kaydetme iptal edildi."; return; }
+    if (auto) { console.warn("otomatik kaydetme başarısız:", e); return; }
+    state.fileHandle = null;
+    console.warn("dosyaya kaydetme başarısız, indirmeye dönülüyor:", e);
+  }
+  if (auto) return; // indirme yedeği yalnız elle kaydetmede
+  // yedek yol: indirme
+  const blob = new Blob([data], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "alpro-verilerim.json"; a.click();
+  URL.revokeObjectURL(a.href);
+  markClean();
+  msg.textContent = "İndirildi ✓ (alpro-verilerim.json) · " + nowTR();
+}
+async function openFromFile() {
+  const msg = document.getElementById("saveMsg");
+  try {
+    if (window.showOpenFilePicker) {
+      const [h] = await window.showOpenFilePicker({ types: FILE_OPTS.types, multiple: false });
+      const f = await h.getFile();
+      applyImport(JSON.parse(await f.text()));
+      state.fileHandle = h;
+      markClean(); renderAll();
+      msg.textContent = "Yüklendi ✓ " + f.name;
+      return;
+    }
+  } catch (e) {
+    if (e && e.name === "AbortError") return;
+    msg.textContent = "Dosya açılamadı: " + e.message;
+    return;
+  }
+  document.getElementById("importFile").click(); // yedek yol
+}
+
+/* ---------- alarmlar ---------- */
+function addAlert(symbol, dir, level) {
+  state.alerts.push({
+    id: Date.now() + "-" + Math.floor(Math.random() * 1e5),
+    symbol, dir, level, active: true, firedAt: null,
+  });
+  markDirty();
+}
+function checkAlerts() {
+  const fired = [];
+  for (const a of state.alerts) {
+    if (!a.active) continue;
+    const q = quoteOf(a.symbol);
+    if (!q || q.price == null) continue;
+    const hit = a.dir === "above" ? q.price >= a.level : q.price <= a.level;
+    if (hit) {
+      a.active = false;
+      a.firedAt = new Date().toISOString();
+      a.firedPrice = q.price;
+      fired.push(a);
+    }
+  }
+  for (const a of fired) notifyAlert(a);
+  if (fired.length) { markDirty(); if (typeof renderTools === "function") renderTools(); }
+  return fired;
+}
+function notifyAlert(a) {
+  const text = `${a.symbol} ${a.dir === "above" ? "eşiğin üstünde" : "eşiğin altında"}: ${fmtNum(a.firedPrice)} ₺ (eşik ${fmtNum(a.level)} ₺)`;
+  try {
+    if ("Notification" in window && Notification.permission === "granted")
+      new Notification("AL PRO Alarm", { body: text });
+  } catch (_) {}
+}
+
+/* ---------- senaryo motoru ---------- */
+function shockLabel(t) {
+  return ASSET_TR[t] || (INSTRUMENTS[t] ? t + " (" + INSTRUMENTS[t].name + ")" : t);
+}
+function computeScenario(shocks) {
+  const s = portfolioSummary();
+  const rows = [];
+  let newTotal = 0, coveredOld = 0;
+  for (const p of s.positions) {
+    if (p.price == null) continue;
+    let pct = 0;
+    for (const sh of shocks) if (sh.target === p.cls || sh.target === p.symbol) pct += sh.pct;
+    const newValue = p.value * (1 + pct / 100);
+    newTotal += newValue; coveredOld += p.value;
+    rows.push({ symbol: p.symbol, cls: p.cls, value: p.value, pct, newValue, diff: newValue - p.value });
+  }
+  return {
+    rows: rows.sort((x, y) => Math.abs(y.diff) - Math.abs(x.diff)),
+    oldTotal: coveredOld, newTotal, diff: newTotal - coveredOld,
+    diffPct: coveredOld > 0 ? ((newTotal - coveredOld) / coveredOld) * 100 : 0,
+  };
+}
+
+/* ---------- 30 günlük seri (canlı + DEMO üretimi) ---------- */
+function demoSeries(sym) {
+  const q = DEMO_QUOTES[sym] || { price: 100 };
+  const base = q.price, now = Date.now(), day = 86400000;
+  const pts = [];
+  for (let i = 29; i >= 0; i--) {
+    // deterministik dalga (rastgele yok: aynı görünüm, dürüst DEMO etiketi)
+    const w = Math.sin(i / 4.1) * 0.035 + Math.sin(i / 9.7) * 0.02 + (29 - i) * 0.0012;
+    pts.push([now - i * day, base * (1 - 0.04 + w)]);
+  }
+  pts[pts.length - 1][1] = base;
+  return { pts, src: "demo" };
+}
+/* ---------- TradingView sembol eşlemesi ---------- */
+function tvSymbolFor(sym) {
+  const fixed = { BTC: "BITSTAMP:BTCUSD", ETH: "BITSTAMP:ETHUSD", USD: "FX_IDC:USDTRY", "XAU-GRAM": "OANDA:XAUUSD" };
+  if (fixed[sym]) return fixed[sym];
+  const info = INSTRUMENTS[sym];
+  if (info && info.cls === "equity_bist") return "BIST:" + sym;
+  return null;
+}
+
+/* ---------- haftalık rapor ---------- */
+function buildWeeklyReport() {
+  const s = portfolioSummary(state.txs); // rapor her zaman tüm hesapları kapsar
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 86400000);
+  const cut = weekAgo.toISOString().slice(0, 10);
+  const L = [];
+  L.push(`AL PRO HAFTALIK RAPOR — ${weekAgo.toLocaleDateString("tr-TR")} → ${now.toLocaleDateString("tr-TR")}`);
+  L.push(`Hazırlanma: ${now.toLocaleString("tr-TR")} · ${state.userName} için`);
+  L.push("");
+  L.push("PORTFÖY DURUMU");
+  L.push(`• Bugünkü değer: ${fmtMoney(s.totalValue, 0)} · Açık K/Z: ${fmtMoney(s.totalUpl, 0)} (${s.totalUplPct != null ? fmtPct(s.totalUplPct) : "—"})`);
+  const old = [...state.history].reverse().find(h => h.d <= cut);
+  if (old && old.v > 0) {
+    const chg = s.totalValue - old.v;
+    L.push(`• 7 gün önceye göre: ${fmtMoney(chg, 0)} (${fmtPct((chg / old.v) * 100)}) — ${old.d} kaydına kıyasla`);
+  } else {
+    L.push(`• Haftalık karşılaştırma için geçmiş verisi birikiyor (şu an ${state.history.length} günlük kayıt var).`);
+  }
+  const r = portfolioXirr(state.txs);
+  if (r != null) L.push(`• Yıllıklandırılmış getiri (para-ağırlıklı): ${fmtPct(r)}`);
+  if (s.totalRealized || s.totalDividends)
+    L.push(`• Gerçekleşen K/Z: ${fmtMoney(s.totalRealized, 0)}${s.totalDividends ? ` · Toplam temettü: ${fmtMoney(s.totalDividends, 0)}` : ""}`);
+  L.push("");
+  L.push("BU HAFTANIN İŞLEMLERİ");
+  const weekTxs = state.txs.filter(t => t.date >= cut).sort((a, b) => a.date.localeCompare(b.date));
+  if (!weekTxs.length) L.push("• Bu hafta işlem yapılmadı.");
+  for (const t of weekTxs) {
+    const tur = t.side === "buy" ? "Alış" : t.side === "div" ? "Temettü" : "Satış";
+    L.push(t.side === "div"
+      ? `• ${t.date} · ${t.symbol} · Temettü: ${fmtMoney(t.price, 0)}`
+      : `• ${t.date} · ${t.symbol} · ${tur}: ${fmtQty(t.qty)} adet × ${fmtNum(t.price)} ₺`);
+  }
+  const firedThisWeek = state.alerts.filter(a => a.firedAt && a.firedAt.slice(0, 10) >= cut);
+  if (firedThisWeek.length) {
+    L.push("");
+    L.push("TETİKLENEN ALARMLAR");
+    for (const a of firedThisWeek)
+      L.push(`• ${a.symbol}: ${fmtNum(a.level)} ₺ eşiği ${a.dir === "above" ? "yukarı" : "aşağı"} kırıldı (${new Date(a.firedAt).toLocaleDateString("tr-TR")}, fiyat ${fmtNum(a.firedPrice || 0)} ₺)`);
+  }
+  const targetSyms = Object.keys(state.targets);
+  if (targetSyms.length) {
+    L.push("");
+    L.push("HEDEF FİYATLAR");
+    for (const sym of targetSyms) {
+      const q = quoteOf(sym);
+      if (!q || q.price == null) continue;
+      const dist = ((state.targets[sym] / q.price) - 1) * 100;
+      L.push(`• ${sym}: hedef ${fmtNum(state.targets[sym])} ₺ · güncel ${fmtNum(q.price)} ₺ · hedefe uzaklık ${fmtPct(dist)}`);
+    }
+  }
+  L.push("");
+  L.push("DAĞILIM");
+  for (const [k, v] of Object.entries(s.byClass).sort((a, b) => b[1] - a[1]))
+    L.push(`• ${ASSET_TR[k]}: ${fmtPct((v / s.totalValue) * 100, false, 1)} (${fmtMoney(v, 0)})`);
+  L.push("");
+  L.push("VERİ NOTU");
+  for (const src of Object.values(state.sources))
+    L.push(`• ${src.name}: ${src.mode === "live" ? "CANLI" : "DEMO"}`);
+  L.push("");
+  L.push("---");
+  L.push("Bu rapor bilgilendirme amaçlıdır; yatırım tavsiyesi değildir.");
+  return L.join("\n");
+}
+
+async function loadSeries(sym) {
+  const id = INSTRUMENTS[sym] && INSTRUMENTS[sym].cg;
+  if (id) {
+    try {
+      const m = await fetchJson(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=try&days=30`);
+      if (m.prices && m.prices.length > 5) {
+        state.series[sym] = { pts: m.prices, src: "live" };
+        return state.series[sym];
+      }
+    } catch (e) { console.warn("seri alınamadı:", sym, e.message); }
+  }
+  state.series[sym] = state.series[sym] || demoSeries(sym);
+  return state.series[sym];
+}
+</script>
+<script>
+/* =====================================================================
+   AL PRO v0.2 — UI renderers, interactions, TradingView embeds, init
+   ===================================================================== */
+
+/* ---------- tabs ---------- */
+function openTab(id) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll("#nav button").forEach(b => b.classList.remove("active"));
+  document.getElementById("tab-" + id).classList.add("active");
+  document.querySelector(`#nav button[data-tab="${id}"]`).classList.add("active");
+  if (id === "analysis") initTradingView();
+}
+document.getElementById("nav").addEventListener("click", e => {
+  const b = e.target.closest("button[data-tab]");
+  if (b) openTab(b.dataset.tab);
+});
+
+/* ---------- svg helpers (dataviz: ince işaretler, 2px ayraç) ---------- */
+function donutSVG(byClass, total) {
+  const svg = document.getElementById("donut");
+  const legend = document.getElementById("donutLegend");
+  svg.innerHTML = ""; legend.innerHTML = "";
+  if (!total || total <= 0) { legend.innerHTML = '<div class="hint">Veri yok</div>'; return; }
+  const order = ["equity_bist", "crypto", "gold", "fund_tefas", "fx", "cash"]; // sabit slot sırası
+  const entries = order.filter(k => byClass[k] > 0).map(k => [k, byClass[k]]);
+  const cx = 85, cy = 85, r = 62, w = 26;
+  let angle = -Math.PI / 2;
+  const NS = "http://www.w3.org/2000/svg";
+  for (const [k, v] of entries) {
+    const frac = v / total;
+    const a0 = angle, a1 = angle + Math.min(frac, 0.9999) * Math.PI * 2;
+    angle = a0 + frac * Math.PI * 2;
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    const p0 = [cx + r * Math.cos(a0), cy + r * Math.sin(a0)];
+    const p1 = [cx + r * Math.cos(a1), cy + r * Math.sin(a1)];
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("d", `M ${p0[0]} ${p0[1]} A ${r} ${r} 0 ${large} 1 ${p1[0]} ${p1[1]}`);
+    path.setAttribute("fill", "none");
+    path.style.stroke = CLASS_COLORS[k];
+    path.setAttribute("stroke-width", w);
+    path.setAttribute("stroke-linecap", "butt");
+    const title = document.createElementNS(NS, "title");
+    title.textContent = `${ASSET_TR[k]}: ${fmtMoney(v)} (${fmtPct(frac * 100, false)})`;
+    path.appendChild(title);
+    svg.appendChild(path);
+    if (entries.length > 1) { // 2px yüzey ayracı
+      const gap = document.createElementNS(NS, "line");
+      gap.setAttribute("x1", cx); gap.setAttribute("y1", cy);
+      gap.setAttribute("x2", cx + (r + w) * Math.cos(a0)); gap.setAttribute("y2", cy + (r + w) * Math.sin(a0));
+      gap.setAttribute("stroke", "var(--surface)"); gap.setAttribute("stroke-width", 2.5);
+      svg.appendChild(gap);
+    }
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<span class="swatch" style="background:${CLASS_COLORS[k]}"></span>
+      <span class="name">${ASSET_TR[k]}</span>
+      <span class="val">${fmtPct(frac * 100, false, 1)}</span>`;
+    legend.appendChild(row);
+  }
+  const center = document.createElementNS(NS, "text");
+  center.setAttribute("x", cx); center.setAttribute("y", cy - 4);
+  center.setAttribute("text-anchor", "middle");
+  center.setAttribute("fill", "var(--ink-2)"); center.setAttribute("font-size", "11");
+  center.textContent = "Toplam";
+  const center2 = document.createElementNS(NS, "text");
+  center2.setAttribute("x", cx); center2.setAttribute("y", cy + 14);
+  center2.setAttribute("text-anchor", "middle");
+  center2.setAttribute("fill", "var(--ink)"); center2.setAttribute("font-size", "13"); center2.setAttribute("font-weight", "700");
+  center2.textContent = total >= 1e6 ? fmtNum(total / 1e6, 2) + " M₺" : fmtNum(total / 1e3, 0) + " B₺";
+  svg.appendChild(center); svg.appendChild(center2);
+}
+
+function sparkSVG(values, width = 120, height = 30) {
+  if (!values || values.length < 2) return "";
+  const min = Math.min(...values), max = Math.max(...values);
+  const span = max - min || 1;
+  const pts = values.map((v, i) => [
+    (i / (values.length - 1)) * (width - 4) + 2,
+    height - 3 - ((v - min) / span) * (height - 8),
+  ]);
+  const d = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const up = values[values.length - 1] >= values[0];
+  const color = up ? "var(--good)" : "var(--crit)";
+  const last = pts[pts.length - 1];
+  return `<svg class="spark" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <title>7 günlük eğilim</title>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="2.6" fill="${color}"/></svg>`;
+}
+
+/* ---------- renderers ---------- */
+function chgCell(chg) {
+  if (chg == null) return `<span class="src">—</span>`;
+  return `<span class="${cls(chg)}">${arrow(chg)} ${fmtPct(chg)}</span>`;
+}
+
+function renderTopbar() {
+  document.getElementById("todayLine").textContent =
+    new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric", weekday: "long" });
+  const chips = document.getElementById("statusChips");
+  chips.innerHTML = "";
+  for (const [key, src] of Object.entries(state.sources)) {
+    const c = document.createElement("span");
+    c.className = "chip " + (src.mode === "live" ? "live" : "demo");
+    c.title = src.detail + (src.asof ? " · " + src.asof : "");
+    c.innerHTML = `<span class="dot"></span>${src.name.split(" ")[0]} ${src.mode === "live" ? "CANLI" : "DEMO"}`;
+    chips.appendChild(c);
+  }
+}
+
+function renderOverview() {
+  const s = portfolioSummary();
+  const tiles = document.getElementById("tiles");
+  const u = state.quotes.USDTRY;
+  tiles.innerHTML = `
+    <div class="card tile"><div class="label">Toplam Portföy Değeri</div>
+      <div class="value">${fmtMoney(s.totalValue)}</div>
+      <div class="delta neutral">maliyet: ${fmtMoney(s.totalCost)}</div></div>
+    <div class="card tile"><div class="label">Açık Kâr / Zarar</div>
+      <div class="value ${cls(s.totalUpl)}">${fmtMoney(s.totalUpl)}</div>
+      <div class="delta ${cls(s.totalUpl)}">${s.totalUplPct != null ? arrow(s.totalUpl) + " " + fmtPct(s.totalUplPct) : ""}</div></div>
+    <div class="card tile"><div class="label">Günlük Değişim</div>
+      <div class="value ${s.dayChangePct != null ? cls(s.dayChangePct) : "neutral"}">${s.dayChangePct != null ? fmtPct(s.dayChangePct) : "—"}</div>
+      <div class="delta neutral">${s.dayChangePct != null ? "güncel fiyatlı varlıklar üzerinden" : "fiyat akışı bekleniyor"}</div></div>
+    <div class="card tile"><div class="label">USD/TRY</div>
+      <div class="value">${fmtNum(u.price)}</div>
+      <div class="delta neutral">${srcLabel(u.src)} kur · gerçekleşen K/Z: ${fmtMoney(s.totalRealized, 0)}</div></div>`;
+  donutSVG(s.byClass, s.totalValue);
+  const movers = document.getElementById("movers");
+  const list = s.positions.filter(p => p.chg != null).sort((a, b) => Math.abs(b.chg) - Math.abs(a.chg)).slice(0, 6);
+  movers.innerHTML = list.length
+    ? list.map(p => `<div class="row"><span class="sym">${p.symbol}</span>
+        <span class="src">${p.name}</span>
+        <span class="ml-auto ${cls(p.chg)}">${arrow(p.chg)} ${fmtPct(p.chg)}</span></div>`).join("")
+    : '<div class="hint">Günlük değişim verisi olan varlık yok — Verileri Yenile ile canlı kaynakları dene.</div>';
+  const t = buildBriefing().split("\n").slice(0, 6).join("\n");
+  document.getElementById("briefTeaser").textContent = t + " …";
+}
+
+function renderMarkets() {
+  const fx = document.getElementById("fxTable");
+  const rows = [["USD/TRY", state.quotes.USDTRY], ["EUR/TRY", state.quotes.EURTRY]];
+  fx.innerHTML = `<tr><th>Kur</th><th class="num">Fiyat</th><th class="num">Günlük</th><th>Kaynak</th></tr>` +
+    rows.map(([n, q]) => `<tr><td class="sym">${n}</td><td class="num">${fmtNum(q.price)}</td>
+      <td class="num">${chgCell(q.chg)}</td><td><span class="tag">${srcLabel(q.src)}</span></td></tr>`).join("");
+  const g = state.quotes["XAU-GRAM"];
+  document.getElementById("goldTable").innerHTML =
+    `<tr><th>Varlık</th><th class="num">Fiyat</th><th class="num">Günlük</th><th>Kaynak</th></tr>
+     <tr><td class="sym">Gram Altın</td><td class="num">${fmtMoney(g.price)}</td>
+     <td class="num">${chgCell(g.chg)}</td><td><span class="tag">${srcLabel(g.src)}</span></td></tr>`;
+  document.getElementById("goldNote").textContent =
+    g.src === "live-approx"
+      ? "Canlı mod: ons altına dayalı PAXG fiyatından yaklaşık hesaplanır; kuyumcu/kapalıçarşı fiyatından farklı olabilir."
+      : DEMO_NOTE + ".";
+  const c = document.getElementById("cryptoTable");
+  c.innerHTML = `<tr><th>Varlık</th><th class="num">Fiyat (₺)</th><th class="num">24s</th><th>7g</th><th>Kaynak</th></tr>` +
+    ["BTC", "ETH"].map(sym => {
+      const q = state.quotes[sym];
+      return `<tr><td class="sym">${sym}<div class="src">${INSTRUMENTS[sym].name}</div></td>
+        <td class="num">${fmtNum(q.price, 0)}</td><td class="num">${chgCell(q.chg)}</td>
+        <td>${sparkSVG(q.spark)}</td><td><span class="tag">${srcLabel(q.src)}</span></td></tr>`;
+    }).join("");
+  const b = document.getElementById("bistTable");
+  const watchSyms = ["THYAO", "ASELS", "TCELL", "DMO-FON", ...Object.keys(state.custom)];
+  b.innerHTML = `<tr><th>Sembol</th><th class="num">Fiyat</th><th class="num">Günlük</th><th>Kaynak</th><th></th></tr>` +
+    watchSyms.map(sym => {
+      const q = state.quotes[sym];
+      const t = state.targets[sym];
+      const dist = t && q.price ? ((t / q.price) - 1) * 100 : null;
+      const hedef = t
+        ? `<div class="src">hedef ${fmtNum(t)} ₺ · <span class="${cls(dist)}">${fmtPct(dist)}</span></div>`
+        : "";
+      return `<tr><td class="clickable" onclick="openDetail('${sym}')" title="Detayı aç"><span class="sym">${sym}</span><div class="src">${INSTRUMENTS[sym].name}</div>${hedef}</td>
+        <td class="num">${fmtNum(q.price, sym === "DMO-FON" ? 4 : 2)} ₺</td>
+        <td class="num">${chgCell(q.chg)}</td>
+        <td><span class="tag">${srcLabel(q.src)}</span></td>
+        <td class="num"><button class="btn ghost small" onclick="openPriceDialog('${sym}')">✎</button></td></tr>`;
+    }).join("");
+}
+
+function dispMoney(vTry, dec = 2) {
+  if (state.viewCcy === "USD") {
+    const rate = state.quotes.USDTRY.price;
+    return fmtNum(vTry / rate, dec) + " $";
+  }
+  return fmtMoney(vTry, dec);
+}
+function renderAcctChips() {
+  const box = document.getElementById("acctChips");
+  const accs = accounts();
+  const multi = accs.length > 1;
+  box.innerHTML = "";
+  const mk = (label, val) => {
+    const b = document.createElement("button");
+    b.className = "btn ghost small";
+    if (state.activeAccount === val) { b.className = "btn small"; }
+    b.textContent = label;
+    b.onclick = () => { state.activeAccount = val; renderAll(); };
+    box.appendChild(b);
+  };
+  if (multi) mk("Tümü", "ALL");
+  for (const a of accs) mk(a, a);
+  if (!multi && state.activeAccount !== "ALL") state.activeAccount = "ALL";
+  // hesap select'ini de tazele
+  const sel = document.getElementById("txAcct");
+  const keep = sel.value;
+  sel.innerHTML = accs.map(a => `<option value="${a}">${a}</option>`).join("") +
+    `<option value="__new">➕ Yeni hesap…</option>`;
+  if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+  document.getElementById("txAcctNewLabel").style.display = sel.value === "__new" ? "" : "none";
+}
+function renderPortfolio() {
+  renderAcctChips();
+  const s = portfolioSummary();
+  const usd = state.viewCcy === "USD";
+  document.getElementById("ccyToggle").textContent = usd ? "Görünüm: $ → ₺" : "Görünüm: ₺ → $";
+  document.getElementById("ccyNote").textContent = usd
+    ? `· dolar bazında (kur: ${fmtNum(state.quotes.USDTRY.price)} — ${srcLabel(state.quotes.USDTRY.src)})`
+    : "";
+  document.getElementById("pfTiles").innerHTML = `
+    <div class="card tile"><div class="label">Toplam Değer</div><div class="value">${dispMoney(s.totalValue)}</div></div>
+    <div class="card tile"><div class="label">Açık K/Z</div>
+      <div class="value ${cls(s.totalUpl)}">${dispMoney(s.totalUpl)}</div>
+      <div class="delta ${cls(s.totalUpl)}">${s.totalUplPct != null ? fmtPct(s.totalUplPct) : ""}</div></div>
+    <div class="card tile"><div class="label">Gerçekleşen K/Z</div>
+      <div class="value ${cls(s.totalRealized)}">${dispMoney(s.totalRealized)}</div>
+      <div class="delta neutral">kapanan satışlardan</div></div>
+    <div class="card tile"><div class="label">Toplam Temettü</div>
+      <div class="value ${s.totalDividends ? "up" : "neutral"}">${dispMoney(s.totalDividends)}</div>
+      <div class="delta neutral">${s.positions.length} açık pozisyon</div></div>`;
+  // getiri analizi
+  const r = portfolioXirr();
+  const firstTx = state.txs.length ? [...state.txs].sort((a, b) => a.date.localeCompare(b.date))[0].date : null;
+  document.getElementById("perfList").innerHTML = `
+    <div class="row"><span>Yıllıklandırılmış getiri (para-ağırlıklı)</span>
+      <span class="ml-auto ${r != null ? cls(r) : "neutral"}"><b>${r != null ? fmtPct(r) : "hesaplanamadı"}</b></span></div>
+    <div class="row"><span>Açık K/Z</span><span class="ml-auto ${cls(s.totalUpl)}">${dispMoney(s.totalUpl, 0)} (${s.totalUplPct != null ? fmtPct(s.totalUplPct) : "—"})</span></div>
+    <div class="row"><span>Gerçekleşen K/Z</span><span class="ml-auto ${cls(s.totalRealized)}">${dispMoney(s.totalRealized, 0)}</span></div>
+    <div class="row"><span>Toplam temettü</span><span class="ml-auto ${s.totalDividends ? "up" : "neutral"}">${dispMoney(s.totalDividends, 0)}</span></div>
+    <div class="row"><span>İlk işlem</span><span class="ml-auto neutral">${firstTx ? new Date(firstTx).toLocaleDateString("tr-TR") : "—"}</span></div>`;
+  const table = document.getElementById("posTable");
+  table.innerHTML = `<tr><th>Varlık</th><th class="num">Adet</th><th class="num">Ort. Maliyet</th>
+    <th class="num">Fiyat</th><th class="num">Günlük</th><th class="num">Değer</th>
+    <th class="num">K/Z</th><th class="num">K/Z %</th><th class="num">Ağırlık</th></tr>` +
+    s.positions.map(p => `<tr>
+      <td class="clickable" onclick="openDetail('${p.symbol}')" title="Detayı aç"><span class="sym">${p.symbol}</span> <span class="tag">${ASSET_TR[p.cls]}</span>
+        ${p.src ? `<div class="src">${srcLabel(p.src)}</div>` : ""}</td>
+      <td class="num">${fmtQty(p.qty)}</td>
+      <td class="num">${fmtNum(p.avgCost, p.avgCost > 10000 ? 0 : 2)}</td>
+      <td class="num">${p.price != null ? fmtNum(p.price, p.price > 10000 ? 0 : 2) : "—"}</td>
+      <td class="num">${chgCell(p.chg)}</td>
+      <td class="num">${p.value != null ? dispMoney(p.value, 0) : "—"}</td>
+      <td class="num ${p.upl != null ? cls(p.upl) : ""}">${p.upl != null ? dispMoney(p.upl, 0) : "—"}</td>
+      <td class="num ${p.uplPct != null ? cls(p.uplPct) : ""}">${p.uplPct != null ? fmtPct(p.uplPct) : "—"}</td>
+      <td class="num">${p.weight != null ? fmtPct(p.weight, false, 1) : "—"}</td></tr>`).join("");
+  const txt = document.getElementById("txTable");
+  const txs = [...filteredTxs()].sort((a, b) => b.date.localeCompare(a.date));
+  const multiAcct = accounts().length > 1;
+  txt.innerHTML = `<tr><th>Tarih</th><th>Sembol</th><th>Tür</th>${multiAcct ? "<th>Hesap</th>" : ""}<th class="num">Adet</th>
+    <th class="num">Fiyat / Tutar</th><th class="num">Komisyon</th><th></th></tr>` +
+    txs.map(tx => {
+      const idx = state.txs.indexOf(tx);
+      const tur = tx.side === "buy" ? "Alış" : tx.side === "div" ? '<span class="up">Temettü</span>' : '<span class="down">Satış</span>';
+      return `<tr><td>${tx.date}</td><td class="sym clickable" onclick="openDetail('${tx.symbol}')">${tx.symbol}</td>
+      <td>${tur}</td>${multiAcct ? `<td><span class="tag">${acctOf(tx)}</span></td>` : ""}
+      <td class="num">${tx.side === "div" ? "—" : fmtQty(tx.qty)}</td>
+      <td class="num">${fmtNum(tx.price, tx.price > 10000 ? 0 : 2)}</td>
+      <td class="num">${tx.side === "div" ? "—" : fmtNum(tx.fee || 0, 0)}</td>
+      <td class="num" style="white-space:nowrap">
+        <button class="btn ghost small" title="Düzenle" onclick="openTxEdit(${idx})">✎</button>
+        <button class="btn ghost small" title="Sil" onclick="deleteTx(${idx})">🗑</button></td></tr>`;
+    }).join("");
+  // reel getiri
+  const inflOut = document.getElementById("inflOut");
+  const inflInput = document.getElementById("inflInput");
+  if (document.activeElement !== inflInput) inflInput.value = state.inflation ?? "";
+  const rNow = portfolioXirr();
+  if (rNow != null && state.inflation != null) {
+    const real = ((1 + rNow / 100) / (1 + state.inflation / 100) - 1) * 100;
+    inflOut.innerHTML = `Reel getiri: <b class="${cls(real)}">${fmtPct(real)}</b> (nominal ${fmtPct(rNow)}, enflasyon %${fmtNum(state.inflation, 0)})`;
+  } else {
+    inflOut.textContent = rNow != null ? "Enflasyon varsayımı girip Uygula'ya bas — reel getirini gör." : "";
+  }
+}
+
+/* ---------- işlem düzenleme ---------- */
+let editIdx = null;
+function openTxEdit(idx) {
+  const tx = state.txs[idx];
+  if (!tx) return;
+  editIdx = idx;
+  const isDiv = tx.side === "div";
+  document.getElementById("teInfo").textContent =
+    `${tx.symbol} · ${tx.side === "buy" ? "Alış" : isDiv ? "Temettü" : "Satış"} — sembol ve tür değiştirilemez; yanlışsa işlemi silip yeniden ekle.`;
+  document.getElementById("teDate").value = tx.date;
+  document.getElementById("teQty").value = isDiv ? "" : tx.qty;
+  document.getElementById("teQty").disabled = isDiv;
+  document.getElementById("tePrice").value = tx.price;
+  document.getElementById("tePriceLabel").firstChild.textContent = isDiv ? "Toplam Tutar (₺)" : "Fiyat (₺)";
+  document.getElementById("teFee").value = tx.fee || 0;
+  document.getElementById("teFee").disabled = isDiv;
+  document.getElementById("teMsg").textContent = "";
+  document.getElementById("txEditDialog").showModal();
+}
+document.getElementById("teCancel").addEventListener("click", () => document.getElementById("txEditDialog").close());
+document.getElementById("teSave").addEventListener("click", () => {
+  const tx = state.txs[editIdx];
+  if (!tx) return;
+  const msg = document.getElementById("teMsg");
+  const date = document.getElementById("teDate").value;
+  const price = parseFloat(document.getElementById("tePrice").value);
+  const qty = tx.side === "div" ? 0 : parseFloat(document.getElementById("teQty").value);
+  const fee = tx.side === "div" ? 0 : (parseFloat(document.getElementById("teFee").value) || 0);
+  if (!date) { msg.textContent = "Tarih gerekli."; return; }
+  if (!(price > 0)) { msg.textContent = "Fiyat/tutar pozitif olmalı."; return; }
+  if (tx.side !== "div" && !(qty > 0)) { msg.textContent = "Adet pozitif olmalı."; return; }
+  const candidate = state.txs.map((t, i) => i === editIdx ? { ...t, date, qty, price, fee } : t);
+  const errs = validateLedger(candidate);
+  if (errs.length) { msg.textContent = "Kaydedilemedi: " + errs[0]; return; }
+  state.txs = candidate;
+  markDirty();
+  document.getElementById("txEditDialog").close();
+  renderAll();
+});
+
+/* ---------- varlık detay penceresi ---------- */
+let detailSym = null;
+function openDetail(sym) {
+  if (!(sym in INSTRUMENTS)) return;
+  detailSym = sym;
+  const info = INSTRUMENTS[sym];
+  const q = quoteOf(sym);
+  const s = portfolioSummary();
+  const pos = s.positions.find(p => p.symbol === sym);
+  const ledger = positionsFromLedger(state.txs).find(p => p.symbol === sym);
+  document.getElementById("dTitle").textContent = sym + " — " + info.name;
+  document.getElementById("dClass").textContent = ASSET_TR[info.cls] || info.cls;
+  document.getElementById("dSrc").textContent = q ? srcLabel(q.src) : "veri yok";
+  const stats = [];
+  if (q && q.price != null) {
+    stats.push(["Güncel fiyat", fmtNum(q.price, q.price > 10000 ? 0 : 2) + " ₺"]);
+    if (q.chg != null) stats.push(["Günlük değişim", `<span class="${cls(q.chg)}">${arrow(q.chg)} ${fmtPct(q.chg)}</span>`]);
+  }
+  if (pos) {
+    stats.push(["Adet", fmtQty(pos.qty)]);
+    stats.push(["Ort. maliyet", fmtNum(pos.avgCost, pos.avgCost > 10000 ? 0 : 2) + " ₺"]);
+    if (pos.value != null) stats.push(["Değer", fmtMoney(pos.value, 0)]);
+    if (pos.upl != null) stats.push(["Açık K/Z", `<span class="${cls(pos.upl)}">${fmtMoney(pos.upl, 0)} (${pos.uplPct != null ? fmtPct(pos.uplPct) : "—"})</span>`]);
+    if (pos.weight != null) stats.push(["Portföy ağırlığı", fmtPct(pos.weight, false, 1)]);
+  } else {
+    stats.push(["Pozisyon", "yok (izlemede)"]);
+  }
+  if (ledger) {
+    if (ledger.realized) stats.push(["Gerçekleşen K/Z", `<span class="${cls(ledger.realized)}">${fmtMoney(ledger.realized, 0)}</span>`]);
+    if (ledger.dividends) stats.push(["Toplam temettü", `<span class="up">${fmtMoney(ledger.dividends, 0)}</span>`]);
+  }
+  document.getElementById("dStats").innerHTML = stats.map(([l, v]) =>
+    `<div class="dstat"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+  // hedef
+  document.getElementById("dTarget").value = state.targets[sym] || "";
+  renderTargetInfo();
+  // not
+  document.getElementById("dNote").value = state.notes[sym] || "";
+  document.getElementById("dNoteMsg").textContent = "";
+  // işlemler
+  const txs = state.txs.filter(t => t.symbol === sym).sort((a, b) => b.date.localeCompare(a.date));
+  const tt = document.getElementById("dTxTable");
+  tt.innerHTML = txs.length
+    ? `<tr><th>Tarih</th><th>Tür</th><th class="num">Adet</th><th class="num">Fiyat / Tutar</th></tr>` +
+      txs.map(t => `<tr><td>${t.date}</td>
+        <td>${t.side === "buy" ? "Alış" : t.side === "div" ? '<span class="up">Temettü</span>' : '<span class="down">Satış</span>'}</td>
+        <td class="num">${t.side === "div" ? "—" : fmtQty(t.qty)}</td>
+        <td class="num">${fmtNum(t.price, t.price > 10000 ? 0 : 2)} ₺</td></tr>`).join("")
+    : `<tr><td class="hint">Bu varlıkta henüz işlem yok.</td></tr>`;
+  document.getElementById("dChart").style.display = tvSymbolFor(sym) ? "" : "none";
+  const kap = document.getElementById("dKap");
+  if (info.cls === "equity_bist") {
+    kap.style.display = "";
+    kap.href = "https://www.google.com/search?q=" + encodeURIComponent(`KAP ${sym} bildirim`);
+  } else kap.style.display = "none";
+  document.getElementById("detailDialog").showModal();
+}
+function renderTargetInfo() {
+  const info = document.getElementById("dTargetInfo");
+  const t = state.targets[detailSym];
+  const q = quoteOf(detailSym);
+  if (!t) { info.textContent = "Hedef belirlenmedi. Hedef koyarsan izleme listesinde ve haftalık raporda uzaklığını görürsün."; return; }
+  if (!q || q.price == null) { info.textContent = `Hedef: ${fmtNum(t)} ₺ (güncel fiyat verisi yok).`; return; }
+  const dist = ((t / q.price) - 1) * 100;
+  info.innerHTML = `Hedef: <b>${fmtNum(t)} ₺</b> · güncel: ${fmtNum(q.price)} ₺ · hedefe uzaklık: <b class="${cls(dist)}">${fmtPct(dist)}</b>`;
+}
+document.getElementById("dClose").addEventListener("click", () => document.getElementById("detailDialog").close());
+document.getElementById("dClose2").addEventListener("click", () => document.getElementById("detailDialog").close());
+document.getElementById("dTargetSave").addEventListener("click", () => {
+  const v = parseFloat(document.getElementById("dTarget").value);
+  if (v > 0) { state.targets[detailSym] = v; markDirty(); renderTargetInfo(); renderMarkets(); renderTools(); }
+});
+document.getElementById("dTargetClear").addEventListener("click", () => {
+  delete state.targets[detailSym];
+  document.getElementById("dTarget").value = "";
+  markDirty(); renderTargetInfo(); renderMarkets(); renderTools();
+});
+document.getElementById("dTargetAlarm").addEventListener("click", () => {
+  const t = state.targets[detailSym] || parseFloat(document.getElementById("dTarget").value);
+  const q = quoteOf(detailSym);
+  const info = document.getElementById("dTargetInfo");
+  if (!t || t <= 0) { info.textContent = "Önce hedef fiyat gir."; return; }
+  if (!q || q.price == null) { info.textContent = "Güncel fiyat verisi olmadan alarm kurulamaz."; return; }
+  const dir = t >= q.price ? "above" : "below";
+  addAlert(detailSym, dir, t);
+  renderTools();
+  info.innerHTML = `Alarm kuruldu ✓ — ${detailSym} ${fmtNum(t)} ₺ ${dir === "above" ? "üstüne çıkınca" : "altına inince"} haber verilecek.`;
+});
+document.getElementById("dNoteSave").addEventListener("click", () => {
+  const v = document.getElementById("dNote").value.trim();
+  if (v) state.notes[detailSym] = v.slice(0, 2000); else delete state.notes[detailSym];
+  markDirty();
+  document.getElementById("dNoteMsg").textContent = "Kaydedildi ✓ (veri dosyana yazılır)";
+});
+document.getElementById("dChart").addEventListener("click", () => {
+  const tv = tvSymbolFor(detailSym);
+  if (!tv) return;
+  const sel = document.getElementById("tvSymbol");
+  if (![...sel.options].some(o => o.value === tv)) {
+    const o = document.createElement("option");
+    o.value = tv; o.textContent = tv;
+    sel.appendChild(o);
+  }
+  sel.value = tv;
+  document.getElementById("detailDialog").close();
+  openTab("analysis");
+  loadTvChart();
+});
+
+/* ---------- portföy değer geçmişi grafiği ---------- */
+function renderHistoryChart() {
+  const svg = document.getElementById("histChart");
+  const hint = document.getElementById("histHint");
+  const note = document.getElementById("histNote");
+  svg.innerHTML = "";
+  const h = state.history;
+  if (h.length < 2) {
+    note.textContent = "";
+    hint.textContent = "Grafik zamanla oluşur: uygulamayı her açtığında (ya da yenilediğinde) o günün portföy değeri kaydedilir ve veri dosyana yazılır. En az 2 farklı günde açtıktan sonra burada servetinin seyrini görürsün. Bugünkü değer: " + (h.length ? fmtMoney(h[0].v, 0) : "—");
+    return;
+  }
+  hint.textContent = "";
+  note.textContent = `· ${h.length} günlük kayıt · ${new Date(h[0].d).toLocaleDateString("tr-TR")} → ${new Date(h[h.length - 1].d).toLocaleDateString("tr-TR")}`;
+  const W = 760, H = 170, padL = 84, padR = 14, padT = 10, padB = 24;
+  const vals = h.map(p => p.v);
+  const min = Math.min(...vals), max = Math.max(...vals), span = max - min || 1;
+  const X = i => padL + (i / (h.length - 1)) * (W - padL - padR);
+  const Y = v => padT + (1 - (v - min) / span) * (H - padT - padB);
+  const NS = "http://www.w3.org/2000/svg";
+  for (const frac of [0, 1]) {
+    const v = min + span * frac, y = Y(v);
+    const ln = document.createElementNS(NS, "line");
+    ln.setAttribute("x1", padL); ln.setAttribute("x2", W - padR);
+    ln.setAttribute("y1", y); ln.setAttribute("y2", y);
+    ln.setAttribute("stroke", "var(--grid)");
+    svg.appendChild(ln);
+    const tx = document.createElementNS(NS, "text");
+    tx.setAttribute("x", padL - 8); tx.setAttribute("y", y + 4);
+    tx.setAttribute("text-anchor", "end"); tx.setAttribute("fill", "var(--muted)"); tx.setAttribute("font-size", "10.5");
+    tx.textContent = fmtNum(v, 0);
+    svg.appendChild(tx);
+  }
+  for (const frac of [0, 1]) {
+    const i = Math.round((h.length - 1) * frac);
+    const tx = document.createElementNS(NS, "text");
+    tx.setAttribute("x", X(i)); tx.setAttribute("y", H - 6);
+    tx.setAttribute("text-anchor", frac === 0 ? "start" : "end");
+    tx.setAttribute("fill", "var(--muted)"); tx.setAttribute("font-size", "10.5");
+    tx.textContent = new Date(h[i].d).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+    svg.appendChild(tx);
+  }
+  const d = h.map((p, i) => (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p.v).toFixed(1)).join(" ");
+  const area = document.createElementNS(NS, "path");
+  area.setAttribute("d", d + ` L ${X(h.length - 1).toFixed(1)} ${H - padB} L ${padL} ${H - padB} Z`);
+  area.setAttribute("fill", "var(--s3)"); area.setAttribute("fill-opacity", "0.08");
+  svg.appendChild(area);
+  const line = document.createElementNS(NS, "path");
+  line.setAttribute("d", d); line.setAttribute("fill", "none");
+  line.setAttribute("stroke", "var(--s3)"); line.setAttribute("stroke-width", "2");
+  svg.appendChild(line);
+  const last = document.createElementNS(NS, "circle");
+  last.setAttribute("cx", X(h.length - 1)); last.setAttribute("cy", Y(h[h.length - 1].v));
+  last.setAttribute("r", "3.5"); last.setAttribute("fill", "var(--s3)");
+  last.setAttribute("stroke", "var(--surface)"); last.setAttribute("stroke-width", "2");
+  svg.appendChild(last);
+}
+
+function renderBriefing() {
+  document.getElementById("briefText").textContent = buildBriefing();
+  document.getElementById("briefMeta").textContent = "· " + nowTR() + " itibarıyla";
+}
+
+function renderData() {
+  const t = document.getElementById("srcTable");
+  t.innerHTML = `<tr><th>Kaynak</th><th>Durum</th><th>Ayrıntı</th><th>Son Güncelleme</th></tr>` +
+    Object.values(state.sources).map(s => `<tr>
+      <td>${s.name}</td>
+      <td><span class="chip ${s.mode === "live" ? "live" : "demo"}"><span class="dot"></span>${s.mode === "live" ? "CANLI" : "DEMO"}</span></td>
+      <td class="src">${s.detail}</td>
+      <td class="src">${s.asof ? new Date(s.asof).toLocaleString("tr-TR") : "—"}</td></tr>`).join("");
+  document.getElementById("setName").value = state.userName;
+  const srvIn = document.getElementById("srvUrl");
+  if (document.activeElement !== srvIn && state.serverUrl) srvIn.value = state.serverUrl;
+  const rm = [
+    ["Faz 0 — Temel", "tamamlandı", true],
+    ["Faz 1 — MVP: Konuşan Portföy (bu uygulama)", "devam ediyor", true],
+    ["Faz 2 — Fonlar, KAP, mobil", "planlandı", false],
+    ["Faz 3 — Abonelik + lisanslı canlı BIST verisi", "planlandı", false],
+    ["Faz 4 — İngilizce + ABD piyasası", "planlandı", false],
+  ];
+  document.getElementById("roadmapList").innerHTML = rm.map(([n, st, on]) =>
+    `<div class="row"><span>${n}</span><span class="ml-auto tag" style="${on ? "color:var(--good)" : ""}">${st}</span></div>`).join("");
+}
+
+/* ---------- Alarm & Senaryo sekmesi ---------- */
+function allSymbols() { return Object.keys(INSTRUMENTS); }
+function fillSymbolSelects() {
+  const opts = allSymbols().map(s => `<option value="${s}">${s} — ${INSTRUMENTS[s].name}</option>`).join("");
+  const tx = document.getElementById("txSymbol");
+  const keep = tx.value; tx.innerHTML = opts; if (keep && [...tx.options].some(o => o.value === keep)) tx.value = keep;
+  const al = document.getElementById("alSymbol");
+  const keepA = al.value; al.innerHTML = opts; if (keepA && [...al.options].some(o => o.value === keepA)) al.value = keepA;
+  const sc = document.getElementById("scTarget");
+  const clsOpts = Object.entries(ASSET_TR).map(([k, v]) => `<option value="${k}">Sınıf: ${v}</option>`).join("");
+  const keepS = sc.value; sc.innerHTML = clsOpts + opts; if (keepS && [...sc.options].some(o => o.value === keepS)) sc.value = keepS;
+}
+
+function renderTools() {
+  fillSymbolSelects();
+  const t = document.getElementById("alTable");
+  if (!state.alerts.length) {
+    t.innerHTML = `<tr><td class="hint">Henüz alarm yok. Yukarıdan kur: örn. THYAO · üstüne çıkarsa · 320.</td></tr>`;
+  } else {
+    t.innerHTML = `<tr><th>Varlık</th><th>Koşul</th><th class="num">Eşik</th><th class="num">Güncel</th><th>Durum</th><th></th></tr>` +
+      state.alerts.map(a => {
+        const q = quoteOf(a.symbol);
+        const cur = q && q.price != null ? fmtNum(q.price) : "—";
+        const st = a.active
+          ? `<span class="tag">bekliyor</span>`
+          : `<span class="up">TETİKLENDİ ✓</span> <span class="src">${a.firedAt ? new Date(a.firedAt).toLocaleString("tr-TR") : ""} · ${fmtNum(a.firedPrice || 0)} ₺</span>`;
+        return `<tr><td class="sym">${a.symbol}</td>
+          <td>${a.dir === "above" ? "üstüne çıkarsa" : "altına inerse"}</td>
+          <td class="num">${fmtNum(a.level)}</td><td class="num">${cur}</td>
+          <td>${st}</td>
+          <td class="num"><button class="btn ghost small" onclick="deleteAlert('${a.id}')">🗑</button></td></tr>`;
+      }).join("");
+  }
+  // senaryo
+  const active = document.getElementById("scActive");
+  active.innerHTML = state.shocks.length
+    ? "Aktif şoklar: " + state.shocks.map((s, i) =>
+        `<span class="tag" style="margin-right:6px">${shockLabel(s.target)} ${fmtPct(s.pct)} <a href="#" onclick="removeShock(${i});return false" style="color:var(--s8)">×</a></span>`).join("")
+    : "Aktif şok yok — üstteki hazır senaryolardan seç ya da özel şok ekle.";
+  const st = document.getElementById("scTable");
+  if (!state.shocks.length) { st.innerHTML = ""; return; }
+  const r = computeScenario(state.shocks);
+  st.innerHTML = `<tr><th>Varlık</th><th class="num">Mevcut Değer</th><th class="num">Şok</th>
+    <th class="num">Senaryo Değeri</th><th class="num">Fark</th></tr>` +
+    r.rows.map(x => `<tr><td class="sym">${x.symbol}</td>
+      <td class="num">${fmtMoney(x.value, 0)}</td>
+      <td class="num">${x.pct ? fmtPct(x.pct) : "—"}</td>
+      <td class="num">${fmtMoney(x.newValue, 0)}</td>
+      <td class="num ${cls(x.diff)}">${x.diff ? fmtMoney(x.diff, 0) : "—"}</td></tr>`).join("") +
+    `<tr><td><b>TOPLAM</b></td><td class="num"><b>${fmtMoney(r.oldTotal, 0)}</b></td><td></td>
+      <td class="num"><b>${fmtMoney(r.newTotal, 0)}</b></td>
+      <td class="num ${cls(r.diff)}"><b>${fmtMoney(r.diff, 0)} (${fmtPct(r.diffPct)})</b></td></tr>`;
+}
+function deleteAlert(id) { state.alerts = state.alerts.filter(a => a.id !== id); markDirty(); renderTools(); }
+function removeShock(i) { state.shocks.splice(i, 1); renderTools(); }
+
+/* ---------- 30 günlük kripto grafiği (eksenli + hover) ---------- */
+let chartSym = "BTC", chartPts = [];
+async function renderCryptoChart(sym) {
+  chartSym = sym;
+  const note = document.getElementById("cryptoChartNote");
+  note.textContent = "· yükleniyor…";
+  const series = await loadSeries(sym);
+  const svg = document.getElementById("cryptoChart");
+  svg.innerHTML = "";
+  chartPts = series.pts;
+  const W = 760, H = 240, padL = 74, padR = 14, padT = 12, padB = 26;
+  const vals = series.pts.map(p => p[1]);
+  const min = Math.min(...vals), max = Math.max(...vals), span = max - min || 1;
+  const X = i => padL + (i / (series.pts.length - 1)) * (W - padL - padR);
+  const Y = v => padT + (1 - (v - min) / span) * (H - padT - padB);
+  const NS = "http://www.w3.org/2000/svg";
+  // ızgara + y etiketleri (3 seviye)
+  for (const frac of [0, 0.5, 1]) {
+    const v = min + span * frac, y = Y(v);
+    const ln = document.createElementNS(NS, "line");
+    ln.setAttribute("x1", padL); ln.setAttribute("x2", W - padR);
+    ln.setAttribute("y1", y); ln.setAttribute("y2", y);
+    ln.setAttribute("stroke", "var(--grid)"); ln.setAttribute("stroke-width", "1");
+    svg.appendChild(ln);
+    const tx = document.createElementNS(NS, "text");
+    tx.setAttribute("x", padL - 8); tx.setAttribute("y", y + 4);
+    tx.setAttribute("text-anchor", "end"); tx.setAttribute("fill", "var(--muted)"); tx.setAttribute("font-size", "10.5");
+    tx.textContent = fmtNum(v, v > 10000 ? 0 : 2);
+    svg.appendChild(tx);
+  }
+  // x etiketleri (ilk/orta/son tarih)
+  for (const frac of [0, 0.5, 1]) {
+    const i = Math.round((series.pts.length - 1) * frac);
+    const d = new Date(series.pts[i][0]);
+    const tx = document.createElementNS(NS, "text");
+    tx.setAttribute("x", X(i)); tx.setAttribute("y", H - 8);
+    tx.setAttribute("text-anchor", frac === 0 ? "start" : frac === 1 ? "end" : "middle");
+    tx.setAttribute("fill", "var(--muted)"); tx.setAttribute("font-size", "10.5");
+    tx.textContent = d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+    svg.appendChild(tx);
+  }
+  // alan + çizgi
+  const dLine = series.pts.map((p, i) => (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p[1]).toFixed(1)).join(" ");
+  const area = document.createElementNS(NS, "path");
+  area.setAttribute("d", dLine + ` L ${X(series.pts.length - 1).toFixed(1)} ${H - padB} L ${padL} ${H - padB} Z`);
+  area.setAttribute("fill", "var(--s1)"); area.setAttribute("fill-opacity", "0.08");
+  svg.appendChild(area);
+  const line = document.createElementNS(NS, "path");
+  line.setAttribute("d", dLine); line.setAttribute("fill", "none");
+  line.setAttribute("stroke", "var(--s1)"); line.setAttribute("stroke-width", "2");
+  line.setAttribute("stroke-linejoin", "round");
+  svg.appendChild(line);
+  // hover katmanı
+  const hover = document.createElementNS(NS, "g");
+  hover.setAttribute("id", "chartHover"); hover.style.display = "none";
+  const vline = document.createElementNS(NS, "line");
+  vline.setAttribute("y1", padT); vline.setAttribute("y2", H - padB);
+  vline.setAttribute("stroke", "var(--baseline)"); vline.setAttribute("stroke-width", "1");
+  const dot = document.createElementNS(NS, "circle");
+  dot.setAttribute("r", "4"); dot.setAttribute("fill", "var(--s1)");
+  dot.setAttribute("stroke", "var(--surface)"); dot.setAttribute("stroke-width", "2");
+  hover.appendChild(vline); hover.appendChild(dot);
+  svg.appendChild(hover);
+  note.textContent = "· " + INSTRUMENTS[sym].name + " (₺) · " +
+    (series.src === "live" ? "CANLI — CoinGecko" : "DEMO verisi — gerçek piyasa verisi değildir");
+  svg.onmousemove = ev => {
+    const rect = svg.getBoundingClientRect();
+    const fx = ((ev.clientX - rect.left) / rect.width) * W;
+    const i = Math.max(0, Math.min(chartPts.length - 1,
+      Math.round(((fx - padL) / (W - padL - padR)) * (chartPts.length - 1))));
+    const [ts, v] = chartPts[i];
+    const x = X(i), y = Y(v);
+    hover.style.display = "";
+    vline.setAttribute("x1", x); vline.setAttribute("x2", x);
+    dot.setAttribute("cx", x); dot.setAttribute("cy", y);
+    const tip = document.getElementById("chartTip");
+    tip.style.display = "block";
+    tip.innerHTML = `<b>${fmtNum(v, v > 10000 ? 0 : 2)} ₺</b><br><span class="src">${new Date(ts).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}</span>`;
+    const px = (x / W) * rect.width;
+    tip.style.left = Math.min(rect.width - 130, Math.max(0, px + 12)) + "px";
+    tip.style.top = ((y / H) * rect.height - 14) + "px";
+  };
+  svg.onmouseleave = () => {
+    hover.style.display = "none";
+    document.getElementById("chartTip").style.display = "none";
+  };
+}
+
+function renderAll() {
+  updateHistory(portfolioSummary());
+  renderTopbar(); renderOverview(); renderHistoryChart(); renderMarkets(); renderPortfolio(); renderBriefing(); renderData(); renderTools();
+  checkAlerts();
+}
+
+/* ---------- interactions ---------- */
+function deleteTx(idx) {
+  state.txs.splice(idx, 1);
+  markDirty();
+  renderAll();
+}
+function syncTxForm() {
+  const div = document.getElementById("txSide").value === "div";
+  const cash = document.getElementById("txSymbol").value === "NAKIT";
+  const qty = document.getElementById("txQty");
+  const price = document.getElementById("txPrice");
+  qty.disabled = div;
+  qty.placeholder = div ? "—" : cash ? "örn. 50000" : "";
+  document.getElementById("txFee").disabled = div;
+  qty.previousSibling.textContent = cash && !div ? "Tutar (₺)" : "Adet";
+  if (cash && !div) { price.value = 1; price.disabled = true; }
+  else { price.disabled = false; if (price.value === "1") price.value = ""; }
+  document.getElementById("txPriceLabel").firstChild.textContent = div ? "Toplam Tutar (₺)" : "Birim Fiyat (₺)";
+}
+document.getElementById("txSide").addEventListener("change", syncTxForm);
+document.getElementById("txSymbol").addEventListener("change", syncTxForm);
+document.getElementById("inflSave").addEventListener("click", () => {
+  const v = parseFloat(document.getElementById("inflInput").value);
+  state.inflation = (v >= 0 && v <= 500) ? v : null;
+  markDirty();
+  renderPortfolio();
+});
+document.getElementById("csvTemplate").addEventListener("click", () => {
+  const blob = new Blob([CSV_TEMPLATE], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "alpro-islem-sablonu.csv"; a.click();
+  URL.revokeObjectURL(a.href);
+});
+function importCsvText(text) {
+  const { txs, errors, newSyms } = parseCsvTransactions(text);
+  for (const [sym, lastPrice] of Object.entries(newSyms)) {
+    INSTRUMENTS[sym] = { name: sym, cls: "equity_bist", custom: true };
+    state.custom[sym] = { name: sym };
+    state.quotes[sym] = { price: lastPrice, chg: null, src: "manual" };
+  }
+  state.txs.push(...txs);
+  const ledgerErrs = validateLedger(state.txs);
+  markDirty();
+  renderAll();
+  return { imported: txs.length, errors, newSyms: Object.keys(newSyms), ledgerErrs };
+}
+document.getElementById("csvFile").addEventListener("change", ev => {
+  const f = ev.target.files[0];
+  if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    const msg = document.getElementById("saveMsg");
+    try {
+      const r = importCsvText(rd.result);
+      let t = `CSV: ${r.imported} işlem aktarıldı ✓`;
+      if (r.newSyms.length) t += ` · yeni semboller: ${r.newSyms.join(", ")}`;
+      if (r.errors.length) t += ` · ${r.errors.length} satır atlandı (${r.errors[0]}${r.errors.length > 1 ? " …" : ""})`;
+      if (r.ledgerErrs.length) t += ` · UYARI: ${r.ledgerErrs[0]}`;
+      msg.textContent = t;
+    } catch (e) { msg.textContent = "CSV okunamadı: " + e.message; }
+    ev.target.value = "";
+  };
+  rd.readAsText(f, "utf-8");
+});
+document.getElementById("txAdd").addEventListener("click", () => {
+  const symbol = document.getElementById("txSymbol").value;
+  const side = document.getElementById("txSide").value;
+  const qty = parseFloat(document.getElementById("txQty").value);
+  const price = parseFloat(document.getElementById("txPrice").value);
+  const fee = parseFloat(document.getElementById("txFee").value) || 0;
+  const date = document.getElementById("txDate").value || new Date().toISOString().slice(0, 10);
+  const msg = document.getElementById("txMsg");
+  if (!price || price <= 0) { msg.textContent = side === "div" ? "Temettü tutarını gir." : "Fiyat pozitif olmalı."; return; }
+  if (side !== "div" && (!qty || qty <= 0)) { msg.textContent = "Adet pozitif olmalı."; return; }
+  if (side === "sell") {
+    const held = positionsFromLedger(state.txs).find(p => p.symbol === symbol);
+    if (!held || held.qty + 1e-9 < qty) { msg.textContent = `Satış eldekinden fazla olamaz (eldeki: ${held ? fmtQty(held.qty) : 0}).`; return; }
+  }
+  let acct = document.getElementById("txAcct").value;
+  if (acct === "__new") {
+    acct = document.getElementById("txAcctNew").value.trim().slice(0, 30);
+    if (!acct) { msg.textContent = "Yeni hesap adını yaz (örn. BES, Eşim)."; return; }
+    document.getElementById("txAcctNew").value = "";
+  }
+  state.txs.push(side === "div"
+    ? { side, symbol, qty: 0, price, fee: 0, date, acct }
+    : { side, symbol, qty, price, fee, date, acct });
+  msg.textContent = (side === "div" ? "Temettü kaydedildi ✓" : "İşlem eklendi ✓") + (acct !== "Ana" ? ` (${acct})` : "");
+  document.getElementById("txQty").value = ""; document.getElementById("txPrice").value = "";
+  markDirty();
+  renderAll();
+});
+document.getElementById("ccyToggle").addEventListener("click", () => {
+  state.viewCcy = state.viewCcy === "TRY" ? "USD" : "TRY";
+  renderPortfolio();
+});
+document.getElementById("benchBtn").addEventListener("click", async () => {
+  const out = document.getElementById("benchResult");
+  out.innerHTML = '<div class="row"><span class="hint">Tarihsel kurlar alınıyor…</span></div>';
+  try {
+    const b = await usdBenchmark();
+    const better = b.diff >= 0;
+    out.innerHTML = `
+      <div class="row"><span>Aynı tarihlerde alınacak dolar</span><span class="ml-auto">${fmtNum(b.usdUnits, 0)} $</span></div>
+      <div class="row"><span>O doların bugünkü değeri</span><span class="ml-auto">${fmtMoney(b.usdNowTry, 0)} <span class="src">(kur ${fmtNum(b.nowRate)} — ${srcLabel(b.nowRateSrc)})</span></span></div>
+      <div class="row"><span>Portföyünün bugünkü değeri</span><span class="ml-auto">${fmtMoney(b.portfolio, 0)}</span></div>
+      <div class="row"><span><b>Fark</b></span><span class="ml-auto ${cls(b.diff)}"><b>${fmtMoney(b.diff, 0)}</b> — portföyün dolardan ${better ? "önde" : "geride"}</span></div>
+      <div class="row"><span class="src">Temettüler kıyasa dahil değildir; kurlar ECB gün sonu verisidir. Bilgilendirme amaçlıdır.</span></div>`;
+  } catch (e) {
+    out.innerHTML = `<div class="row"><span class="hint">Hesaplanamadı: tarihsel kur kaynağına ulaşılamadı (internet gerekli). ${e.message ? "· " + e.message : ""}</span></div>`;
+  }
+});
+function manualPrices() {
+  const out = {};
+  for (const [sym, q] of Object.entries(state.quotes)) if (q.src === "manual") out[sym] = q.price;
+  return out;
+}
+document.getElementById("saveFileBtn").addEventListener("click", saveToFile);
+document.getElementById("openFileBtn").addEventListener("click", openFromFile);
+document.getElementById("importFile").addEventListener("change", ev => {
+  const f = ev.target.files[0];
+  if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      applyImport(JSON.parse(rd.result));
+      markClean();
+      renderAll();
+      document.getElementById("saveMsg").textContent = "Yüklendi ✓ " + f.name;
+    } catch (e) { document.getElementById("saveMsg").textContent = "Dosya okunamadı: " + e.message; }
+    ev.target.value = "";
+  };
+  rd.readAsText(f);
+});
+document.getElementById("resetBtn").addEventListener("click", () => {
+  state.txs = JSON.parse(JSON.stringify(DEMO_TXS));
+  state.alerts = []; state.shocks = [];
+  markDirty();
+  renderAll();
+});
+
+/* ---------- v0.3: alarm, senaryo, sembol ekleme, oto-yenileme ---------- */
+document.getElementById("alAdd").addEventListener("click", () => {
+  const symbol = document.getElementById("alSymbol").value;
+  const dir = document.getElementById("alDir").value;
+  const level = parseFloat(document.getElementById("alLevel").value);
+  const msg = document.getElementById("alMsg");
+  if (!level || level <= 0) { msg.textContent = "Geçerli bir eşik fiyat gir."; return; }
+  addAlert(symbol, dir, level);
+  msg.textContent = "Alarm kuruldu ✓ — veriler her yenilendiğinde kontrol edilir.";
+  document.getElementById("alLevel").value = "";
+  renderTools();
+  checkAlerts();
+});
+document.getElementById("alNotify").addEventListener("click", async () => {
+  const msg = document.getElementById("alMsg");
+  if (!("Notification" in window)) { msg.textContent = "Bu tarayıcı bildirim desteklemiyor."; return; }
+  const perm = await Notification.requestPermission();
+  msg.textContent = perm === "granted" ? "Bildirim izni verildi ✓" : "Bildirim izni verilmedi — alarmlar yine de listede görünür.";
+});
+document.getElementById("scPresets").addEventListener("click", e => {
+  const b = e.target.closest("button[data-sc]");
+  if (!b) return;
+  const [target, pct] = b.dataset.sc.split(":");
+  state.shocks = state.shocks.filter(s => s.target !== target);
+  state.shocks.push({ target, pct: parseFloat(pct) });
+  renderTools();
+});
+document.getElementById("scAdd").addEventListener("click", () => {
+  const target = document.getElementById("scTarget").value;
+  const pct = parseFloat(document.getElementById("scPct").value);
+  if (!pct) return;
+  state.shocks = state.shocks.filter(s => s.target !== target);
+  state.shocks.push({ target, pct });
+  document.getElementById("scPct").value = "";
+  renderTools();
+});
+document.getElementById("scClear").addEventListener("click", () => { state.shocks = []; renderTools(); });
+document.getElementById("addSymBtn").addEventListener("click", () => {
+  const code = document.getElementById("addSymCode").value.trim().toUpperCase();
+  const name = document.getElementById("addSymName").value.trim() || code;
+  const clsSel = document.getElementById("addSymCls").value;
+  const price = parseFloat(document.getElementById("addSymPrice").value);
+  const msg = document.getElementById("addSymMsg");
+  if (!code || !/^[A-Z0-9\-]{2,8}$/.test(code)) { msg.textContent = "Geçerli bir kod gir (örn. GARAN, AFT)."; return; }
+  if (code in INSTRUMENTS) { msg.textContent = code + " zaten listede."; return; }
+  if (!price || price <= 0) { msg.textContent = "Güncel fiyatı gir (aracı kurum/fon uygulamandan bakabilirsin)."; return; }
+  INSTRUMENTS[code] = { name, cls: clsSel, custom: true };
+  state.custom[code] = { name, cls: clsSel };
+  state.quotes[code] = { price, chg: null, src: "manual" };
+  msg.textContent = code + " eklendi ✓ — artık portföyde işlem görebilir, alarm kurulabilir.";
+  document.getElementById("addSymCode").value = ""; document.getElementById("addSymName").value = ""; document.getElementById("addSymPrice").value = "";
+  markDirty();
+  renderAll();
+});
+document.getElementById("txAcct").addEventListener("change", () => {
+  document.getElementById("txAcctNewLabel").style.display =
+    document.getElementById("txAcct").value === "__new" ? "" : "none";
+});
+document.getElementById("autosaveBtn").addEventListener("click", () => {
+  state.autosave = !state.autosave;
+  document.getElementById("autosaveBtn").textContent = "Oto-kaydet: " + (state.autosave ? "Açık" : "Kapalı");
+});
+document.getElementById("autoBtn").addEventListener("click", () => {
+  const b = document.getElementById("autoBtn");
+  if (state.autoTimer) {
+    clearInterval(state.autoTimer); state.autoTimer = null;
+    b.textContent = "⏱ Oto: Kapalı";
+  } else {
+    state.autoTimer = setInterval(refreshAll, 60000);
+    b.textContent = "⏱ Oto: 60 sn";
+    refreshAll();
+  }
+});
+document.getElementById("refreshBtn").addEventListener("click", refreshAll);
+document.getElementById("briefRegen").addEventListener("click", renderBriefing);
+document.getElementById("weeklyGen").addEventListener("click", () => {
+  const el = document.getElementById("weeklyText");
+  el.textContent = buildWeeklyReport();
+  el.style.display = "block";
+  document.getElementById("weeklyCopy").style.display = "";
+  document.getElementById("weeklyDl").style.display = "";
+});
+document.getElementById("weeklyCopy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(document.getElementById("weeklyText").textContent); } catch (_) {}
+});
+document.getElementById("weeklyDl").addEventListener("click", () => {
+  const blob = new Blob([document.getElementById("weeklyText").textContent], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "alpro-haftalik-rapor-" + new Date().toISOString().slice(0, 10) + ".txt";
+  a.click(); URL.revokeObjectURL(a.href);
+});
+document.getElementById("briefCopy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(document.getElementById("briefText").textContent); } catch (_) {}
+});
+/* ---------- sunucu köprüsü (Faz 1) ---------- */
+function srvBase() {
+  const url = document.getElementById("srvUrl").value.trim().replace(/\/+$/, "");
+  if (/^https?:\/\//.test(url)) { state.serverUrl = url; return url; }
+  // Sunucudan sunulan modda (alpro.../app) adres gerekmez: aynı origin +
+  // giriş çerezi yeter — kutu boşsa otomatik bağlan.
+  if (!url && location.protocol.startsWith("http")) return "";
+  return null;
+}
+async function srvFetch(path, opts = {}) {
+  const base = srvBase();
+  const tok = document.getElementById("srvTok").value.trim();
+  if (base === null) throw new Error("geçerli bir sunucu adresi gir (https://…)");
+  const r = await fetch(base + path, {
+    ...opts,
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", ...(tok ? { "X-API-Key": tok } : {}) },
+  });
+  if (r.status === 401) throw new Error("erişim anahtarı hatalı");
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || ("HTTP " + r.status));
+  return r.json();
+}
+document.getElementById("srvPush").addEventListener("click", async () => {
+  const msg = document.getElementById("srvMsg");
+  msg.textContent = "Yedek gönderiliyor…";
+  try {
+    const r = await srvFetch("/api/backup", { method: "POST", body: JSON.stringify(exportPayload()) });
+    markDirty(); // serverUrl dosyaya da yazılsın
+    msg.textContent = `Sunucuya yedeklendi ✓ (${(r.bytes / 1024).toFixed(1)} KB) · ${nowTR()}`;
+  } catch (e) { msg.textContent = "Yedekleme başarısız: " + e.message; }
+});
+document.getElementById("srvPull").addEventListener("click", async () => {
+  const msg = document.getElementById("srvMsg");
+  msg.textContent = "Yedek alınıyor…";
+  try {
+    const j = await srvFetch("/api/backup");
+    applyImport(j);
+    renderAll();
+    msg.textContent = `Sunucudan geri yüklendi ✓ (kayıt: ${j.savedAt ? new Date(j.savedAt).toLocaleString("tr-TR") : "?"})`;
+  } catch (e) { msg.textContent = "Geri yükleme başarısız: " + e.message; }
+});
+
+document.getElementById("setSave").addEventListener("click", () => {
+  const v = document.getElementById("setName").value.trim();
+  if (v) { state.userName = v; document.getElementById("setMsg").textContent = "Kaydedildi ✓ (bu oturum için)"; renderAll(); }
+});
+
+/* ---------- price dialog (BIST elle fiyat) ---------- */
+let pdSym = null;
+function openPriceDialog(sym) {
+  pdSym = sym;
+  document.getElementById("pdSymbol").textContent = sym;
+  document.getElementById("pdPrice").value = state.quotes[sym].price;
+  document.getElementById("priceDialog").showModal();
+}
+document.getElementById("pdSave").addEventListener("click", () => {
+  const p = parseFloat(document.getElementById("pdPrice").value);
+  if (pdSym && p > 0) {
+    state.quotes[pdSym] = { ...state.quotes[pdSym], price: p, src: "manual", chg: null };
+    state.sources.bist.detail = "Elle giriş etkin — lisanslı canlı veri Faz 3'te";
+    markDirty();
+    renderAll();
+  }
+  document.getElementById("priceDialog").close();
+});
+document.getElementById("pdCancel").addEventListener("click", () => document.getElementById("priceDialog").close());
+
+/* ---------- TradingView embeds (yalnızca Grafik sekmesinde, istekle) ---------- */
+let tvLoaded = false;
+function tvWidget(container, scriptSrc, config) {
+  const el = document.getElementById(container);
+  el.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "tradingview-widget-container";
+  wrap.style.height = "100%";
+  const inner = document.createElement("div");
+  inner.className = "tradingview-widget-container__widget";
+  inner.style.height = "100%";
+  wrap.appendChild(inner);
+  const sc = document.createElement("script");
+  sc.type = "text/javascript"; sc.async = true; sc.src = scriptSrc;
+  sc.innerHTML = JSON.stringify(config);
+  wrap.appendChild(sc);
+  el.appendChild(wrap);
+}
+function loadTvChart() {
+  const symbol = document.getElementById("tvSymbol").value;
+  tvWidget("tvChart", "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js", {
+    autosize: true, symbol, interval: "D", timezone: "Europe/Istanbul",
+    theme: "dark", style: "1", locale: "tr", allow_symbol_change: true,
+    support_host: "https://www.tradingview.com",
+  });
+}
+function initTradingView() {
+  if (tvLoaded) return;
+  tvLoaded = true;
+  loadTvChart();
+  tvWidget("tvScreener", "https://s3.tradingview.com/external-embedding/embed-widget-screener.js", {
+    width: "100%", height: "100%", defaultColumn: "overview", defaultScreen: "most_capitalized",
+    market: "turkey", showToolbar: true, colorTheme: "dark", locale: "tr",
+  });
+}
+document.getElementById("tvLoad").addEventListener("click", loadTvChart);
+
+/* ---------- self-checks (motor doğrulaması, konsola) ---------- */
+(function selfTest() {
+  const t = positionsFromLedger([
+    { side: "buy", symbol: "THYAO", qty: 500, price: 285, fee: 45, date: "2026-03-10" },
+    { side: "sell", symbol: "THYAO", qty: 100, price: 305, fee: 12, date: "2026-07-21" },
+  ]).find(p => p.symbol === "THYAO");
+  console.assert(Math.abs(t.qty - 400) < 1e-9, "qty");
+  console.assert(Math.abs(t.avgCost - 285.09) < 0.01, "avgCost");
+  console.assert(Math.abs(t.realized - ((305 - 285.09) * 100 - 12)) < 0.5, "realized");
+  // XIRR: 1000 yatır, 1 yıl sonra 1200 -> %20
+  const yr = 365.25 * 86400000;
+  const r = xirr([{ t: Date.now() - yr, a: -1000 }, { t: Date.now(), a: 1200 }]);
+  console.assert(r != null && Math.abs(r - 0.2) < 0.005, "xirr", r);
+  // temettü: qty değişmez, dividends birikir
+  const d = positionsFromLedger([
+    { side: "buy", symbol: "ASELS", qty: 100, price: 100, fee: 0, date: "2026-01-10" },
+    { side: "div", symbol: "ASELS", qty: 0, price: 850, fee: 0, date: "2026-06-01" },
+  ]).find(p => p.symbol === "ASELS");
+  console.assert(d.qty === 100 && d.dividends === 850 && Math.abs(d.avgCost - 100) < 1e-9, "dividend");
+  console.log("AL PRO self-test: portföy motoru + XIRR + temettü ✓");
+})();
+
+/* ---------- init ---------- */
+document.getElementById("txDate").value = new Date().toISOString().slice(0, 10);
+renderAll();
+markClean(); // açılış durumu "temiz" — demo veriler kaydedilmeden de vardır
+refreshAll(); // açılışta canlı kaynakları dene (başarısızsa DEMO etiketli kalır)
+renderCryptoChart("BTC"); // 30 günlük grafik (canlı yoksa DEMO etiketli)
+</script>
+</body>
+</html>

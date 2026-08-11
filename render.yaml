@@ -1,0 +1,18 @@
+# Render.com "Blueprint" — GitHub reposuna koyup Render'da "New +> Blueprint" ile seç.
+services:
+  - type: web
+    name: alpro
+    runtime: docker
+    plan: free            # ücretsiz plan: 15 dk hareketsizlikte uyur; ilk istek uyandırır
+    healthCheckPath: /health
+    envVars:
+      - key: ALPRO_API_TOKEN
+        sync: false        # Render panelinde elle gir (gizli anahtarın)
+      - key: ALPRO_USER_NAME
+        value: Ali
+      - key: EVDS_API_KEY
+        sync: false        # evds2.tcmb.gov.tr'den ücretsiz alınır (isteğe bağlı)
+    disk:
+      name: alpro-data
+      mountPath: /data
+      sizeGB: 1
