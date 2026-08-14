@@ -1,0 +1,3 @@
+# Render kurulumu tamamlaninca buraya sunucu adresi yazilacak, ornegin:
+# https://alpro-abcd.onrender.com
+# Adres eklendigi anda .github/workflows/keep-alive.yml sunucuyu uyanik tutmaya baslar.
