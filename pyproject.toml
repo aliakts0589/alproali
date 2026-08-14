@@ -16,6 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+ops = ["sentry-sdk>=2.0"]  # SENTRY_DSN tanımlıysa hata izleme (deploy)
 
 [build-system]
 requires = ["setuptools>=68"]

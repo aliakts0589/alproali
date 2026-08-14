@@ -67,6 +67,10 @@ aynı komutlar canlı veriye geçer. `alpro serve` ile API (Swagger arayüzü
 | `ALPRO_BASE_CURRENCY` | Valuation currency | `TRY` |
 | `DATABASE_URL` | SQLAlchemy URL (Postgres-ready) | local SQLite |
 | `EVDS_API_KEY` | TCMB EVDS key → live FX | unset (fixture) |
+| `ALPRO_FOUNDER_EMAIL` | founder account (magic-link login) | `founder@local` |
+| `ALPRO_INVITES` | beta invite list (comma-separated e-mails) | unset |
+| `RESEND_API_KEY` | magic links delivered as real e-mail (Resend) | unset (link → server log) |
+| `SENTRY_DSN` | error monitoring (needs `pip install "alpro[ops]"`) | unset |
 | `ALPRO_TEFAS_FUNDS` | e.g. `AAK,TI2` → live TEFAS NAVs | unset (demo fund) |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | enables LLM polish of briefing | unset (template) |
 | `ALPRO_LLM_MODEL` | model override | provider default |

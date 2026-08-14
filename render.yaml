@@ -1,4 +1,7 @@
-# Render.com "Blueprint" — GitHub reposuna koyup Render'da "New +> Blueprint" ile seç.
+# Render.com "Blueprint" — Render'da "New + > Blueprint" ile bu repoyu seç.
+# Kurulumda hiçbir alanı doldurmak zorunda değilsin: ALPRO_API_TOKEN'ı Render
+# kendisi üretir (Environment sekmesinden okunur), isteğe bağlı anahtarlar
+# boş bırakılabilir ve sonradan eklenebilir.
 services:
   - type: web
     name: alpro
@@ -7,11 +10,17 @@ services:
     healthCheckPath: /health
     envVars:
       - key: ALPRO_API_TOKEN
-        sync: false        # Render panelinde elle gir (gizli anahtarın)
+        generateValue: true   # Render güçlü bir anahtar üretir — panel/cron girişi
       - key: ALPRO_USER_NAME
         value: Ali
+      - key: ALPRO_FOUNDER_EMAIL
+        value: aliakts0589@gmail.com   # kurucu hesap: magic link ile bu adres girer
       - key: EVDS_API_KEY
-        sync: false        # evds2.tcmb.gov.tr'den ücretsiz alınır (isteğe bağlı)
+        sync: false        # (isteğe bağlı) evds2.tcmb.gov.tr — resmi TCMB kurları
+      - key: RESEND_API_KEY
+        sync: false        # (isteğe bağlı) resend.com — magic link gerçek e-postayla gider
+      - key: SENTRY_DSN
+        sync: false        # (isteğe bağlı) sentry.io — hata izleme
     disk:
       name: alpro-data
       mountPath: /data
