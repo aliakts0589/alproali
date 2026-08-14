@@ -1,89 +1,76 @@
 # AL PRO Yayına Alma Rehberi (Faz 1 kapanışı)
 
-Kod tarafındaki her şey hazır. Senin payına düşen yalnızca **hesap açıp
-düğmelere basmak** — aşağıdaki adımları sırayla yap, takıldığın yerde ekran
-görüntüsüyle bana gel. Zorunlu kısım (1. Bölüm) ~15 dakika sürer.
+## Mevcut durum (14 Ağu 2026)
 
-> ✅ **GitHub adımı bitti.** Kod zaten GitHub hesabında
-> (`aliakts0589/alproali`). Doğrudan Render'dan başlıyorsun.
+- ✅ Kod GitHub'da: `aliakts0589/alproali`
+- ✅ Render hesabın **zaten açık** (aliakts0589@gmail.com) ve depo bir
+  Blueprint olarak bağlı.
+- ❌ 11 Ağustos'taki ilk kurulum "Blueprint Sync Failed" hatasıyla durmuştu.
+  Sebep: eski `render.yaml` ücretsiz planda **kalıcı disk** istiyordu —
+  Render free planda disk vermez. Bu düzeltildi (disk kaldırıldı; veri
+  güvenliği paneldeki "Veri Yedeği" kartıyla sağlanıyor).
+- 🔁 Render, depoya her push'ta Blueprint'i yeniden kurmayı dener. Düzeltme
+  ana dala geçtiği için kurulumun **kendiliğinden** tamamlanması beklenir.
 
----
+## Kurulum kendiliğinden olmadıysa (tek tıklama)
 
-## BÖLÜM 1 — Zorunlu: Render'da yayına al (~15 dk)
+Gelen kutundaki "Blueprint Sync Failed" e-postasındaki bağlantıya tıkla
+(https://dashboard.render.com/blueprint/exs-d9tembdbedkc7394qgf0) →
+sayfada **"Manual Sync"** (elle eşitle) düğmesine bas. Hepsi bu.
 
-1. **render.com** adresine git → "Get Started" → **GitHub ile kaydol**
-   (aliakts0589 hesabınla). E-posta doğrulamasını yap.
-2. Panelde **New +** → **Blueprint** → GitHub bağlantısına izin ver →
-   listeden **alproali** reposunu seç.
-3. Karşına çıkan formda **hiçbir alanı doldurmak zorunda değilsin**:
-   - Giriş anahtarını (ALPRO_API_TOKEN) Render kendisi üretir.
-   - EVDS / Resend / Sentry alanlarını **boş bırak** — hepsi isteğe bağlı,
-     sonradan eklenir.
-4. **Apply**'a bas. Birkaç dakika içinde adresin hazır:
-   `https://alpro-XXXX.onrender.com` (Render panelinde görünür).
-5. **Panele giriş:** adresi telefonda/bilgisayarda aç. İki yol var:
-   - **E-posta ile (önerilen):** e-posta kutusuna `aliakts0589@gmail.com`
-     yaz, KVKK kutusunu işaretle, "Giriş bağlantısı gönder"e bas. Resend
-     kurulmadıysa bağlantı e-postana DEĞİL sunucu **loguna** yazılır:
-     Render panelinde alpro servisi → **Logs** sekmesi → `MAGIC LINK`
-     satırındaki adresi kopyala, tarayıcıya yapıştır → içerdesin.
-   - **Anahtar ile:** Render'da alpro servisi → **Environment** sekmesi →
+## Panele giriş
+
+Kurulum bitince adresin şuna benzer: `https://alpro-XXXX.onrender.com`
+(Render panelinde görünür; e-postana da bildirim gelebilir).
+
+1. Adresi telefonda/bilgisayarda aç.
+2. **E-posta ile giriş:** `aliakts0589@gmail.com` yaz, KVKK kutusunu
+   işaretle, "Giriş bağlantısı gönder"e bas.
+   - Resend anahtarı girilmediyse bağlantı e-postana değil **sunucu
+     loguna** yazılır: Render panelinde alpro servisi → **Logs** →
+     `MAGIC LINK` satırındaki adresi kopyala, tarayıcıya yapıştır.
+   - Alternatif: Render'da alpro servisi → **Environment** →
      `ALPRO_API_TOKEN` değerini kopyala → paneldeki "Erişim anahtarıyla
      bağlan" kutusuna yapıştır.
-6. Giriş yaptıktan sonra **/app** bağlantısına tıkla → tam uygulama
-   (grafikler, alarmlar, işlem ekleme) her cihazda.
+3. Girişten sonra **/app** → tam uygulama (grafikler, alarmlar, işlemler).
 
-## BÖLÜM 2 — Önerilen: sunucu uyumasın + günlük brifing (~10 dk)
+## Ücretsiz planda verilerin güvenliği (ÖNEMLİ)
 
-Ücretsiz Render planında sunucu 15 dk hareketsizlikte uyur; ilk istek onu
-uyandırır ama ~1 dk bekletir. Çözüm: **cron-job.org** (ücretsiz).
+Free planda kalıcı disk olmadığı için sunucu **yeniden kurulduğunda**
+(kod güncellemesi, Render bakımı) kayıtlı işlemler silinebilir. Çözüm
+panelde hazır: **Veri Yedeği** kartı →
 
-1. cron-job.org'da hesap aç → **Create cronjob**.
-2. **Uyandırma görevi:** URL = `https://ADRESIN.onrender.com/health`,
-   sıklık = her 10 dakikada bir. Kaydet — bu kadar.
-3. *(İsteğe bağlı)* **Günlük brifing görevi:** ikinci bir cronjob aç:
-   - URL = `https://ADRESIN.onrender.com/internal/cron/daily`
-   - Zaman = her gün 07:00 (Europe/Istanbul)
-   - Ayarlarda **Request method: POST** seç ve **Headers** bölümüne şunu
-     ekle: isim `X-API-Key`, değer = Render Environment'taki
-     `ALPRO_API_TOKEN`.
-   Böylece sabah brifingin sen uygulamayı açmadan hazırlanmış olur.
+- **"Yedeği İndir (.db)"** — haftada bir bas, inen dosyayı sakla.
+- **"Geri yükle"** — veri sıfırlanırsa son yedeği seç, "Yükle"ye bas;
+  her şey dakikalar içinde geri gelir.
 
-## BÖLÜM 3 — İsteğe bağlı: magic link gerçek e-postayla gelsin (~10 dk)
+Verilerin hiç silinmemesini istediğin gün Render'da planı **Starter**'a
+(~$7/ay) yükseltip `render.yaml` içindeki disk bloğunun yorumunu
+kaldırıyoruz — o gün geldiğinde birlikte yaparız.
 
-1. **resend.com**'da hesap aç — **aliakts0589@gmail.com ile kaydol**
-   (önemli: ücretsiz test göndericisi yalnızca kendi adresine gönderebilir).
-2. Panelde **API Keys** → **Create API Key** → çıkan `re_...` değerini kopyala.
-3. Render'da alpro servisi → **Environment** → `RESEND_API_KEY` alanına
-   yapıştır → **Save** (servis kendini yeniden başlatır).
-4. Artık giriş bağlantısı doğrudan e-postana gelir; loglara bakmak gerekmez.
-   Gönderim herhangi bir nedenle başarısız olursa sistem eski yönteme döner
-   (link loga yazılır) — giriş asla kilitlenmez.
+## Sunucu uyumasın (otomatik — bir şey yapman gerekmiyor)
 
-> Davet listesine başka kullanıcılar ekleyeceğin gün: Resend'de kendi alan
-> adını doğrulaman ve Render'a `ALPRO_EMAIL_FROM` + `ALPRO_INVITES`
-> eklemen gerekir — o gün geldiğinde birlikte yaparız.
+Depodaki GitHub Actions görevi (`keep-alive`) 10 dakikada bir sunucuya
+istek atarak onu uyanık tutar. Sunucu adresi `RENDER_URL.txt` dosyasına
+yazıldığı anda çalışmaya başlar (adres belli olunca Claude'a söylemen
+yeterli — dosyayı o günceller). cron-job.org'a gerek kalmadı.
 
-## BÖLÜM 4 — İsteğe bağlı: hata izleme + yedek (~10 dk)
+## İsteğe bağlı iyileştirmeler (hazır olduğunda, her biri ~10 dk)
 
-- **Sentry (hata alarmı):** sentry.io'da hesap aç → yeni proje (platform:
-  Python/FastAPI) → sana verilen **DSN** adresini kopyala → Render
-  **Environment** → `SENTRY_DSN` alanına yapıştır → Save. Sunucuda bir hata
-  olursa e-postana bildirim gelir.
-- **Off-site yedek (haftalık alışkanlık):** panelde kurucu olarak
-  girişliyken tarayıcıya `https://ADRESIN.onrender.com/internal/backup/db`
-  yaz → tüm veritabanının o anki kopyası (`alpro-yedek-TARIH.db`) iner.
-  Haftada bir indirip bilgisayarında saklaman yeterli.
-- **TCMB kurları (canlı döviz):** evds2.tcmb.gov.tr'de üye ol → profil
-  sayfasından "API Anahtarı" → Render **Environment** → `EVDS_API_KEY`.
+- **Magic link e-postayla gelsin:** resend.com'da **aliakts0589@gmail.com
+  ile** hesap aç (ücretsiz test göndericisi yalnızca kendi adresine
+  gönderebilir) → API Keys → Create → `re_...` değerini Render'da alpro
+  servisi → Environment → `RESEND_API_KEY` alanına yapıştır → Save.
+  Gönderim aksarsa sistem otomatik log yöntemine döner; giriş kilitlenmez.
+- **Hata alarmı (Sentry):** sentry.io'da hesap aç → yeni proje
+  (Python/FastAPI) → DSN'i kopyala → Render Environment → `SENTRY_DSN`.
+- **Resmi TCMB kurları:** evds2.tcmb.gov.tr → üye ol → profilden
+  "API Anahtarı" → Render Environment → `EVDS_API_KEY`.
 
 ## Sık sorulanlar
 
-**Verilerim nerede?** Render'daki 1 GB kalıcı diskte (`/data/alpro.db`),
-yalnızca senin sunucunda. Panele giriş yapmadan kimse erişemez.
-
-**Ücret?** GitHub + Render free + cron-job.org + Resend free + Sentry free
-= 0 ₺/ay. Sunucu hiç uyumasın istersen Render Starter (~7 $/ay) yeterli.
+**Ücret?** Şu an her şey 0 ₺/ay (Render free + GitHub Actions + Resend
+free + Sentry free). Kalıcı disk istersen Render Starter ~$7/ay.
 
 **Sorun çıkarsa?** Render'da alpro servisi → **Logs** sekmesindeki son
-satırları kopyala, bana getir — birlikte çözeriz.
+satırları kopyala, Claude'a getir — birlikte çözülür.

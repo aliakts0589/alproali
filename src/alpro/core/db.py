@@ -41,6 +41,14 @@ def get_engine():
     return _engine
 
 
+def dispose_engine() -> None:
+    """Havuzdaki tüm bağlantıları kapat — SQLite dosyası yerinde değiştirilmeden
+    (yedekten geri yükleme) önce çağrılır. Engine yeniden kullanılabilir kalır:
+    bir sonraki bağlantı dosyayı yeniden açar."""
+    if _engine is not None:
+        _engine.dispose()
+
+
 def _ensure_sqlite_columns(engine) -> None:
     """Minimal column guard for pre-multiuser SQLite files.
 

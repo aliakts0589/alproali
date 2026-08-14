@@ -69,3 +69,16 @@ uygulama boş adresle sunucuya yedekledi/geri yükledi ✓
    tıklama adımları · Test: 45/45
 ⏳ Kalan (yalnız hesap açma): Render "Apply" → adres hazır; sonra ops.
    cron-job.org + Resend + Sentry anahtarları (rehber Bölüm 2-4)
+
+## v0.7.1 (14 Ağu 2026): SYNC FAILED TEŞHİSİ + FREE-PLAN UYUMU ✅
+Teşhis: 11 Ağu "Blueprint Sync Failed" e-postasının sebebi render.yaml'daki
+disk bloğu — Render free planda kalıcı disk desteklemez.
+✅ render.yaml free-uyumlu: disk kaldırıldı (Starter'a geçiş bloğu yorumda hazır)
+✅ Veri kaybı telafisi: POST /internal/backup/db (kurucu) yedekten geri yükleme
+   + panelde "Veri Yedeği" kartı (indir / geri yükle düğmeleri)
+✅ keep-alive: GitHub Actions 10 dk'da bir /health'e vurur (RENDER_URL.txt
+   dolunca aktif) — cron-job.org'a gerek kalmadı
+Not: Bu oturumun ağ politikası render.com/onrender.com'a erişime kapalı
+(403) — kurulum Render'ın push-tetikli Blueprint sync'ine bırakıldı;
+doğrulama kullanıcı tarafında (telefon) + Gmail sync bildirimlerinden.
+Test: 47/47

@@ -160,3 +160,55 @@ def test_db_backup_download_founder_only(client, caplog):
     assert r.status_code == 200
     assert r.content.startswith(b"SQLite format 3\x00")
     assert 'attachment; filename="alpro-yedek-' in r.headers["content-disposition"]
+
+
+def test_db_backup_restore_roundtrip(client):
+    """İndir → geri yükle → veri yerinde. Free-plan veri kaybı senaryosunun
+    kurtarma yolu: panel 'Veri Yedeği' kartının kullandığı uçlar."""
+    client.cookies.clear()
+    snapshot = client.get("/internal/backup/db", headers=ADMIN_HEADERS).content
+
+    r = client.post(
+        "/internal/backup/db",
+        headers={**ADMIN_HEADERS, "Content-Type": "application/octet-stream"},
+        content=snapshot,
+    )
+    assert r.status_code == 200 and r.json()["ok"] is True
+
+    # geri yükleme sonrası portföy hâlâ okunuyor (kurucu demo verisi yerinde)
+    p = client.get("/api/portfolio/summary", headers=ADMIN_HEADERS).json()
+    symbols = [x["symbol"] for x in p["positions"]]
+    assert "THYAO" in symbols
+
+
+def test_db_restore_rejects_garbage(client):
+    client.cookies.clear()
+    r = client.post(
+        "/internal/backup/db",
+        headers={**ADMIN_HEADERS, "Content-Type": "application/octet-stream"},
+        content=b"bu bir sqlite dosyasi degil",
+    )
+    assert r.status_code == 422
+
+    # SQLite başlıklı ama AL PRO şeması olmayan dosya da reddedilir
+    import sqlite3 as _sq
+    import tempfile as _tmp
+    import os as _os
+
+    fd, path = _tmp.mkstemp(suffix=".db")
+    _os.close(fd)
+    try:
+        con = _sq.connect(path)
+        con.execute("CREATE TABLE bambaska (x INTEGER)")
+        con.commit()
+        con.close()
+        with open(path, "rb") as f:
+            fake = f.read()
+    finally:
+        _os.unlink(path)
+    r = client.post(
+        "/internal/backup/db",
+        headers={**ADMIN_HEADERS, "Content-Type": "application/octet-stream"},
+        content=fake,
+    )
+    assert r.status_code == 422

@@ -39,7 +39,7 @@ from alpro.ai.tools import (
 from alpro.api.auth import get_current_user, get_or_create_founder, require_token
 from alpro.api.auth import router as auth_router
 from alpro.config import settings
-from alpro.core.db import init_db, session
+from alpro.core.db import dispose_engine, init_db, session
 from alpro.core.models import (
     Alert,
     BriefingRecord,
@@ -472,6 +472,66 @@ def download_db_backup(user: User = Depends(get_current_user)) -> Response:
     )
 
 
+MAX_DB_RESTORE_BYTES = 100 * 1024 * 1024  # 100 MB
+
+
+@app.post("/internal/backup/db")
+async def restore_db_backup(request: Request, user: User = Depends(get_current_user)) -> dict:
+    """İndirilen .db yedeğini sunucuya geri yükler (yalnız kurucu).
+
+    Ücretsiz planda kalıcı disk yoktur: yeniden kurulumda veriler sıfırlanır.
+    Bu uç, paneldeki "Geri yükle" düğmesiyle son yedeğin dakikalar içinde
+    geri gelmesini sağlar — off-site yedek provasının ikinci yarısı.
+    """
+    if not user.is_founder:
+        raise HTTPException(status_code=403, detail="yalnızca kurucu erişebilir")
+    url = settings.database_url
+    prefix = "sqlite:///"
+    if not url.startswith(prefix):
+        raise HTTPException(
+            status_code=400, detail="dosya geri yükleme yalnızca SQLite için desteklenir"
+        )
+    dst_path = url[len(prefix):]
+    raw = await request.body()
+    if len(raw) > MAX_DB_RESTORE_BYTES:
+        raise HTTPException(status_code=413, detail="yedek dosyası çok büyük")
+    if not raw.startswith(b"SQLite format 3\x00"):
+        raise HTTPException(status_code=422, detail="geçerli bir SQLite yedeği değil")
+
+    fd, tmp_path = tempfile.mkstemp(prefix="alpro-restore-", suffix=".db")
+    with os.fdopen(fd, "wb") as f:
+        f.write(raw)
+    try:
+        # Bütünlük + "gerçekten AL PRO yedeği mi" denetimi dosya devreye
+        # alınmadan yapılır — bozuk/yanlış dosya mevcut veriyi ezemez.
+        conn = sqlite3.connect(tmp_path)
+        try:
+            ok = conn.execute("PRAGMA integrity_check").fetchone()[0]
+            tables = {
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            }
+        finally:
+            conn.close()
+        if ok != "ok" or "users" not in tables or "transactions" not in tables:
+            raise HTTPException(status_code=422, detail="geçerli bir AL PRO yedeği değil")
+
+        with _write_lock:
+            dispose_engine()  # açık bağlantılar kapanmadan dosya değiştirilmez
+            os.replace(tmp_path, dst_path)
+            for sidecar in (dst_path + "-wal", dst_path + "-shm"):
+                if os.path.exists(sidecar):
+                    os.unlink(sidecar)
+            init_db()  # yeni sürümün ekleyeceği tablo/kolonlar tamamlanır
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+    log.info("DB yedeği geri yüklendi (%d bayt)", len(raw))
+    return {"ok": True, "bytes": len(raw)}
+
+
 # ------------------------------------------------------------ yedekleme
 # AL PRO masaüstü/tarayıcı uygulamasının veri dosyası artık kullanıcı hesabına
 # bağlı olarak user_backups tablosunda tutulur (dosya tabanlı eski yol kalktı).
@@ -575,6 +635,12 @@ a{color:#3987e5}
 <label>Eşik<input id="aLevel" type="number" step="any" style="width:100px"></label>
 <button onclick="addAlert()">Alarm Kur</button></div>
 <div class="muted" id="aMsg"></div></div>
+<div class="card" id="bkCard" style="display:none"><h3>Veri Yedeği (kurucu)</h3>
+<div class="row">
+<button class="ghost" onclick="dlBackup()">Yedeği İndir (.db)</button>
+<label>Geri yükle<input id="bkFile" type="file" accept=".db"></label>
+<button onclick="restoreBackup()">Yükle</button></div>
+<div class="muted" id="bkMsg">Ücretsiz sunucuda veriler yeniden kurulumda silinebilir — haftada bir yedeğini indir; gerekirse buradan geri yükle.</div></div>
 <div class="card"><h3>İşlem Ekle</h3>
 <div class="row">
 <label>Sembol<input id="fSym" style="width:90px" placeholder="THYAO"></label>
@@ -604,6 +670,7 @@ async function boot(){
     $("who").style.display="";
     $("who").innerHTML = me.email + ' · <a href="#" onclick="logout();return false">Çıkış</a>';
     $("authBox").style.display="none"; $("main").style.display="";
+    if(me.is_founder) $("bkCard").style.display="";
     load();
   }catch(e){ /* 401 → giriş formu görünür kalır */ }
 }
@@ -661,6 +728,31 @@ async function addAlert(){
 async function delAlert(id){
   try{ await api("/api/alerts/"+id,{method:"DELETE"}); $("aMsg").textContent=""; loadAlerts(); }
   catch(e){ $("aMsg").textContent="Hata: "+e.message; }
+}
+async function dlBackup(){
+  try{
+    const r = await fetch("/internal/backup/db",{headers:TOKEN?{"X-API-Key":TOKEN}:{}});
+    if(!r.ok) throw new Error((await r.json()).detail||r.status);
+    const blob = await r.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const cd = r.headers.get("content-disposition")||"";
+    a.download = (cd.match(/filename="([^"]+)"/)||[])[1] || "alpro-yedek.db";
+    a.click(); URL.revokeObjectURL(a.href);
+    $("bkMsg").textContent = "Yedek indirildi ✓ Dosyayı güvenli bir yerde sakla.";
+  }catch(e){ $("bkMsg").textContent = "Hata: " + e.message; }
+}
+async function restoreBackup(){
+  const f = $("bkFile").files[0];
+  if(!f){ $("bkMsg").textContent = "Önce bir .db yedek dosyası seç."; return; }
+  if(!confirm("Sunucudaki TÜM veriler bu yedekle DEĞİŞTİRİLECEK. Devam edilsin mi?")) return;
+  try{
+    const h = Object.assign({"Content-Type":"application/octet-stream"}, TOKEN?{"X-API-Key":TOKEN}:{});
+    const r = await fetch("/internal/backup/db",{method:"POST",headers:h,body:f});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail||r.status);
+    $("bkMsg").textContent = "Geri yükleme tamam ✓"; load();
+  }catch(e){ $("bkMsg").textContent = "Hata: " + e.message; }
 }
 async function addTx(){
   try{

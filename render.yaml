@@ -1,7 +1,10 @@
-# Render.com "Blueprint" — Render'da "New + > Blueprint" ile bu repoyu seç.
-# Kurulumda hiçbir alanı doldurmak zorunda değilsin: ALPRO_API_TOKEN'ı Render
-# kendisi üretir (Environment sekmesinden okunur), isteğe bağlı anahtarlar
-# boş bırakılabilir ve sonradan eklenebilir.
+# Render.com "Blueprint" — repoya her push'ta Render bu dosyayı yeniden okur.
+# ÜCRETSİZ PLAN NOTU: Render free planda kalıcı disk VERMEZ — eski sürümdeki
+# "disk:" bloğu Blueprint sync'inin "failed" olmasının sebebiydi. Bu sürüm
+# free planda sorunsuz kurulur; veriler yeniden kurulumda sıfırlanabilir,
+# paneldeki "Veri Yedeği" kartı indir/geri yükle ile bunu telafi eder.
+# Starter'a (~$7/ay) geçileceği gün: aşağıdaki "plan:" satırını "starter" yap
+# ve en alttaki disk bloğunun yorumunu kaldır — kalıcı disk devreye girer.
 services:
   - type: web
     name: alpro
@@ -21,7 +24,8 @@ services:
         sync: false        # (isteğe bağlı) resend.com — magic link gerçek e-postayla gider
       - key: SENTRY_DSN
         sync: false        # (isteğe bağlı) sentry.io — hata izleme
-    disk:
-      name: alpro-data
-      mountPath: /data
-      sizeGB: 1
+    # Starter planına geçince aç (free planda disk desteklenmez):
+    # disk:
+    #   name: alpro-data
+    #   mountPath: /data
+    #   sizeGB: 1
