@@ -17,9 +17,11 @@ import asyncio
 import json
 import logging
 import os
+import sqlite3
+import tempfile
 import threading
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
@@ -52,6 +54,18 @@ from alpro.portfolio.engine import LedgerError, add_transaction
 from alpro.services.alerts import check_alerts
 
 log = logging.getLogger(__name__)
+
+# Sentry (isteğe bağlı): SENTRY_DSN tanımlıysa hatalar raporlanır. SDK "ops"
+# ekstrasıyla gelir (Dockerfile kurar); yoksa uygulama normal çalışmayı sürdürür.
+_SENTRY_DSN = os.environ.get("SENTRY_DSN")
+if _SENTRY_DSN:
+    try:
+        import sentry_sdk
+
+        sentry_sdk.init(dsn=_SENTRY_DSN, traces_sample_rate=0.0, send_default_pii=False)
+        log.info("Sentry hata izleme aktif")
+    except ImportError:  # pragma: no cover — kurulum moduna bağlı
+        log.warning("SENTRY_DSN tanımlı ama sentry-sdk kurulu değil (pip install 'alpro[ops]')")
 
 app = FastAPI(title="AL PRO API", version="0.4.0")
 app.include_router(auth_router)
@@ -415,6 +429,47 @@ def delete_transaction(tx_id: int, user: User = Depends(get_current_user)) -> di
             detail=f"silinemez — sonraki bir satış bu işleme dayanıyor: {exc}",
         )
     return {"ok": True}
+
+
+# ------------------------------------------- off-site yedek (yalnız kurucu)
+# SPRINT-PLAN madde 6'nın kod ayağı: kurucu, panelde oturum açıkken tarayıcıdan
+# /internal/backup/db adresini açar → SQLite dosyasının tutarlı anlık görüntüsü
+# iner. Haftada bir indirip saklamak off-site yedek provasıdır.
+
+@app.get("/internal/backup/db")
+def download_db_backup(user: User = Depends(get_current_user)) -> Response:
+    if not user.is_founder:
+        raise HTTPException(status_code=403, detail="yalnızca kurucu erişebilir")
+    url = settings.database_url
+    prefix = "sqlite:///"
+    if not url.startswith(prefix):
+        raise HTTPException(
+            status_code=400, detail="dosya yedeği yalnızca SQLite için desteklenir"
+        )
+    src_path = url[len(prefix):]
+    fd, snapshot_path = tempfile.mkstemp(prefix="alpro-backup-", suffix=".db")
+    os.close(fd)
+    try:
+        # sqlite3.backup: yazma sürerken bile sayfa-tutarlı kopya (WAL dahil).
+        with _write_lock:
+            src = sqlite3.connect(src_path)
+            dst = sqlite3.connect(snapshot_path)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+                src.close()
+        data = _Path(snapshot_path).read_bytes()
+    finally:
+        os.unlink(snapshot_path)
+    stamp = datetime.now(IST_TZ).strftime("%Y%m%d-%H%M")
+    return Response(
+        content=data,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="alpro-yedek-{stamp}.db"'
+        },
+    )
 
 
 # ------------------------------------------------------------ yedekleme

@@ -23,6 +23,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 
+from alpro.api import mailer
 from alpro.config import settings
 from alpro.core.db import session
 from alpro.core.models import (
@@ -164,12 +165,9 @@ def request_link(payload: RequestLinkIn, request: Request) -> dict:
         )
 
     url = f"{str(request.base_url).rstrip('/')}/auth/verify?token={raw_token}"
-    if settings.email_mode == "console":
-        # Beta modu: link sunucu loguna yazılır, operatör iletir.
-        log.info("MAGIC LINK for %s: %s", email, url)
-    else:
-        # TODO(Faz 1 kapanışı): Resend/Brevo SMTP gönderimi buraya —
-        # settings.email_mode == "smtp"/"resend". Şimdilik console'a düşer.
+    if not mailer.send_magic_link(email, url):
+        # console modu ya da gönderim hatası: link BU logger'dan okunur,
+        # operatör iletir (beta). Testler de linki buradan yakalar.
         log.info("MAGIC LINK for %s: %s", email, url)
     return {"ok": True, "message": "Giriş bağlantısı e-postana gönderildi."}
 

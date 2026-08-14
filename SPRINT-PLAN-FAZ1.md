@@ -54,3 +54,18 @@ Sunucu artık tam AL PRO istemcisini kendisi sunuyor: adres/app → 8 sekmeli uy
 (aynı origin + oturum çerezi ile otomatik bağlanır; adres kutusu boş kalabilir).
 Panel giriş kapısı olarak kaldı; 37/37 test; tarayıcı doğrulaması: sunucudan yüklenen
 uygulama boş adresle sunucuya yedekledi/geri yükledi ✓
+
+## v0.7 (14 Ağu 2026): DEPLOY HAZIRLIĞI ✅ — kodda bekleyen iş kalmadı
+✅ Magic link e-postası: Resend entegrasyonu (RESEND_API_KEY yapıştırılınca
+   otomatik devreye girer; anahtar yoksa/gönderim hata verirse link loga düşer
+   — giriş asla kilitlenmez)
+✅ Sentry: SENTRY_DSN tanımlıysa hata izleme aktif (sentry-sdk "ops" ekstrası,
+   Dockerfile kurar)
+✅ Off-site yedek: /internal/backup/db → kurucu tek tıkla tutarlı SQLite
+   yedeğini indirir (sqlite3.backup anlık görüntüsü)
+✅ render.yaml sıfır-ayar: ALPRO_API_TOKEN'ı Render üretir (generateValue),
+   kurucu e-posta hazır; isteğe bağlı alanlar boş bırakılabilir
+✅ DEPLOY_TR.md güncellendi: GitHub bitti, Render/cron-job/Resend/Sentry
+   tıklama adımları · Test: 45/45
+⏳ Kalan (yalnız hesap açma): Render "Apply" → adres hazır; sonra ops.
+   cron-job.org + Resend + Sentry anahtarları (rehber Bölüm 2-4)

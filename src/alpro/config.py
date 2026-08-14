@@ -57,8 +57,14 @@ class Settings:
     session_days: int = int(os.environ.get("ALPRO_SESSION_DAYS", "30"))
     link_minutes: int = int(os.environ.get("ALPRO_LINK_MINUTES", "15"))
     # "console": magic link is written to the server log (dev/beta).
-    # "smtp"/"resend": real e-mail delivery — lands with the Resend/Brevo integration.
-    email_mode: str = os.environ.get("ALPRO_EMAIL_MODE", "console")
+    # "resend": real e-mail via the Resend API.
+    # "auto" (default): resend when RESEND_API_KEY is set, console otherwise —
+    # deploy day is just pasting the key, no mode flag to remember.
+    email_mode: str = os.environ.get("ALPRO_EMAIL_MODE", "auto")
+    resend_api_key: str | None = os.environ.get("RESEND_API_KEY") or None
+    # Resend'in test göndericisi doğrulama istemez ama YALNIZCA Resend hesabının
+    # kendi e-postasına gönderebilir; davetliler için alan adı doğrulaması gerekir.
+    email_from: str = os.environ.get("ALPRO_EMAIL_FROM", "AL PRO <onboarding@resend.dev>")
 
     # LLM (optional — the product works without any key: template briefing)
     anthropic_api_key: str | None = os.environ.get("ANTHROPIC_API_KEY") or None
