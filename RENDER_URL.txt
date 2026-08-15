@@ -1,4 +1,3 @@
-# Render kurulumu tamamlaninca ILK satira sunucu adresi yazilacak.
-# Ornek bicim (basina "h-t-t-p-s" gelecek sekilde tam adres):
-#   alpro-abcd.onrender.com  (ornek - gercek adres degil)
-# Adres eklendigi anda keep-alive gorevi sunucuyu uyanik tutmaya baslar.
+https://alpro-e1w1.onrender.com
+# Yukaridaki adres canli sunucudur; keep-alive gorevi 10 dakikada bir
+# /health ucuna istek atarak sunucuyu uyanik tutar.
