@@ -247,6 +247,25 @@ class Alert(Base):
     fired_price: Mapped[float | None] = mapped_column(Float, default=None)
 
 
+class ValuationSnapshot(Base):
+    """Günlük portföy değerlemesi (kullanıcı başına; gün Europe/Istanbul).
+
+    Getiri hesabının (TWR) hammaddesi: her gün için toplam değer ve o anki
+    yatırılan tutar saklanır; dış akışlar (alış/satış) hesap anında işlem
+    defterinden türetilir — burada kopyalanmaz."""
+
+    __tablename__ = "valuation_snapshots"
+    __table_args__ = (UniqueConstraint("user_id", "day", name="uq_valuation_user_day"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    day: Mapped[str] = mapped_column(String(10))  # "2026-08-15"
+    total_value: Mapped[float] = mapped_column(Float)
+    invested: Mapped[float] = mapped_column(Float, default=0.0)
+    base_currency: Mapped[str] = mapped_column(String(8))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class BriefingRecord(Base):
     """Daily briefing per user (day is YYYY-MM-DD in Europe/Istanbul)."""
 

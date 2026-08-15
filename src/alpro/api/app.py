@@ -33,6 +33,7 @@ from alpro.ai.tools import (
     get_data_status,
     get_market_overview,
     get_news,
+    get_portfolio_returns,
     get_portfolio_summary,
     get_quote,
 )
@@ -50,7 +51,7 @@ from alpro.core.models import (
     UserBackup,
     utcnow,
 )
-from alpro.portfolio.engine import LedgerError, add_transaction
+from alpro.portfolio.engine import LedgerError, add_transaction, record_valuation_snapshot
 from alpro.services.alerts import check_alerts
 
 log = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ if _SENTRY_DSN:
     except ImportError:  # pragma: no cover — kurulum moduna bağlı
         log.warning("SENTRY_DSN tanımlı ama sentry-sdk kurulu değil (pip install 'alpro[ops]')")
 
-app = FastAPI(title="AL PRO API", version="0.4.0")
+app = FastAPI(title="AL PRO API", version="0.8.0")
 app.include_router(auth_router)
 
 # Tarayıcıdaki AL PRO uygulamasının (file:// dahil) bağlanabilmesi için CORS.
@@ -130,7 +131,7 @@ async def _startup() -> None:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "app": "alpro", "version": "0.4.0", "auth": bool(settings.api_token)}
+    return {"status": "ok", "app": "alpro", "version": "0.8.0", "auth": bool(settings.api_token)}
 
 
 @app.get("/api/tools")
@@ -144,6 +145,14 @@ def tools(user: User = Depends(get_current_user)) -> dict:
 def portfolio(user: User = Depends(get_current_user)) -> dict:
     with session() as s:
         return get_portfolio_summary(s, user.id)
+
+
+@app.get("/api/portfolio/history")
+def portfolio_history(user: User = Depends(get_current_user)) -> dict:
+    """Günlük değer serisi + zaman-ağırlıklı getiri (1g/7g/30g/başlangıç).
+    Kayıtlar cron ve brifing üretiminde birikir — ilk günlerde boş olabilir."""
+    with session() as s:
+        return get_portfolio_returns(s, user.id)
 
 
 # ------------------------------------------------- global market data (auth,
@@ -213,6 +222,10 @@ def briefing(user: User = Depends(get_current_user)) -> dict:
                 "cached": True,
                 "generated_at": rec.created_at.isoformat(),
             }
+    # Günün ilk brifingi: önce değer kaydı düşülür ki getiri satırı bugünü görsün.
+    with _write_lock, session() as s:
+        record_valuation_snapshot(s, user.id, day)
+    with session() as s:
         b = build_briefing(s, user.id)
     with _write_lock, session() as s:
         _upsert_briefing_record(s, user.id, day, b.text)
@@ -277,6 +290,9 @@ def cron_daily() -> dict:
     with session() as s:
         user_ids = list(s.scalars(select(User.id).order_by(User.id)))
     for uid in user_ids:
+        # Önce günün değer kaydı — brifingdeki getiri satırı bugünü de kapsar.
+        with _write_lock, session() as s:
+            record_valuation_snapshot(s, uid, day)
         with session() as s:
             b = build_briefing(s, uid)
         with _write_lock, session() as s:
@@ -684,7 +700,19 @@ async function sendLink(){
   }catch(e){ m.textContent = "Hata: " + e.message; }
 }
 async function logout(){ await fetch("/auth/logout",{method:"POST"}); TOKEN=""; location.reload(); }
-function saveTok(){ TOKEN=$("tok").value.trim(); boot(); }
+async function saveTok(){
+  const t = $("tok").value.trim();
+  if(!t) return;
+  try{
+    const r = await fetch("/auth/token-login",{method:"POST",
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify({token:t})});
+    if(r.ok){ TOKEN=""; boot(); return; }  // çerez oturumu kuruldu — bir daha sorulmaz
+    const d = await r.json();
+    $("authMsg").textContent = "Hata: " + (d.detail || r.status);
+    return;
+  }catch(e){ /* ağ hatası → eski başlık yöntemiyle dene */ }
+  TOKEN = t; boot();
+}
 async function load(){
   try{
     const p = await api("/api/portfolio/summary");
@@ -693,6 +721,15 @@ async function load(){
       <div class="card tile"><div class="l">Toplam Değer</div><div class="v">${fmt(p.total_value)} ₺</div></div>
       <div class="card tile"><div class="l">Açık K/Z</div><div class="v ${p.total_unrealized_pl>=0?"up":"down"}">${fmt(p.total_unrealized_pl)} ₺</div></div>
       <div class="card tile"><div class="l">Pozisyon</div><div class="v">${p.positions.length}</div></div>`;
+    try{
+      const h = await api("/api/portfolio/history");
+      const r = (h && h.returns) || {};
+      const pick = r.d7!=null ? ["7 günlük getiri", r.d7]
+                 : r.d1!=null ? ["Dünden bugüne", r.d1]
+                 : r.inception!=null ? ["Başlangıçtan beri", r.inception] : null;
+      if(pick) $("tiles").innerHTML += `
+      <div class="card tile"><div class="l">${pick[0]}</div><div class="v ${pick[1]>=0?"up":"down"}">%${fmt(pick[1])}</div></div>`;
+    }catch(e){ /* getiri kaydı birikmeden kutu görünmez */ }
     $("brief").textContent = b.text;
     $("pos").innerHTML =
       "<tr><th>Sembol</th><th class=num>Adet</th><th class=num>Fiyat</th><th class=num>Değer</th><th class=num>K/Z %</th><th class=num>Ağırlık</th></tr>" +

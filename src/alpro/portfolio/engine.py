@@ -3,20 +3,23 @@
 Positions are derived from the transaction ledger with weighted-average
 cost. Realized P/L uses average cost at the moment of each sell.
 Valuation converts every position into the base currency through the
-pricing service. TWR/MWR need a valuation history and land later in
-Faz 1 (tracked in ROADMAP.md).
+pricing service. Daily valuation snapshots feed the time-weighted
+return (TWR) calculation below.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from alpro.config import settings
-from alpro.core.models import Instrument, Transaction, TxSide
+from alpro.core.models import Instrument, Transaction, TxSide, ValuationSnapshot
 from alpro.pricing.service import PricingError, Quote, convert, latest_quote
+
+IST_TZ = ZoneInfo("Europe/Istanbul")
 
 
 class LedgerError(Exception):
@@ -187,3 +190,116 @@ def add_transaction(
     # (kod inceleme bulgusu #2). Replay, işlemin sahibi olan defterle sınırlı.
     _positions_from_ledger(s, user_id, strict=True)
     return tx
+
+
+# ------------------------------------------------- valuation history / TWR
+
+def record_valuation_snapshot(s: Session, user_id: int, day: str) -> None:
+    """Günün portföy değerini kaydeder (upsert: aynı gün ikinci çağrı günceller).
+    Cron ve brifing üretimi çağırır — gün Europe/Istanbul takvimindedir."""
+    ps = portfolio_summary(s, user_id)
+    snap = s.scalar(
+        select(ValuationSnapshot).where(
+            ValuationSnapshot.user_id == user_id, ValuationSnapshot.day == day
+        )
+    )
+    if snap is None:
+        s.add(
+            ValuationSnapshot(
+                user_id=user_id,
+                day=day,
+                total_value=ps.total_value_base,
+                invested=ps.total_invested_base,
+                base_currency=ps.base_currency,
+            )
+        )
+    else:
+        snap.total_value = ps.total_value_base
+        snap.invested = ps.total_invested_base
+        snap.base_currency = ps.base_currency
+
+
+def _tx_day_ist(dt: datetime) -> str:
+    """İşlem zamanını IST gününe eşler (SQLite naive-UTC döndürür — normalize)."""
+    aware = dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+    return aware.astimezone(IST_TZ).strftime("%Y-%m-%d")
+
+
+def _daily_flows(s: Session, user_id: int) -> dict[str, float]:
+    """Gün başına net dış akış (baz para varsayımı: işlem para birimi ≈ baz;
+    farklı para birimli işlemlerde akış o günkü kur olmadan yaklaşık kalır).
+    Alış = +maliyet (fiyat*adet+komisyon), satış = -(hasılat-komisyon)."""
+    flows: dict[str, float] = {}
+    for tx in s.scalars(select(Transaction).where(Transaction.user_id == user_id)):
+        day = _tx_day_ist(tx.executed_at)
+        if tx.side == TxSide.BUY:
+            amount = tx.price * tx.quantity + tx.fee
+        else:
+            amount = -(tx.price * tx.quantity - tx.fee)
+        try:
+            amount = convert(s, amount, tx.currency, settings.base_currency)
+        except PricingError:
+            pass  # kur yoksa nominal tutarla devam — yaklaşık akış sıfırdan iyidir
+        flows[day] = flows.get(day, 0.0) + amount
+    return flows
+
+
+def compute_returns(s: Session, user_id: int) -> dict:
+    """Zaman-ağırlıklı getiri (TWR): r_t = (V_t - F_t) / V_{t-1} - 1, zincirlenir.
+    F_t = (önceki kayıt günü, bu kayıt günü] aralığındaki net dış akış — para
+    yatırıp çıkarmak getiri sayılmaz. Dönemler: 1g / 7g / 30g / başlangıç."""
+    snaps = list(
+        s.scalars(
+            select(ValuationSnapshot)
+            .where(ValuationSnapshot.user_id == user_id)
+            .order_by(ValuationSnapshot.day)
+        )
+    )
+    series = [
+        {"day": sn.day, "total_value": round(sn.total_value, 2), "invested": round(sn.invested, 2)}
+        for sn in snaps
+    ]
+    result: dict = {
+        "days": len(snaps),
+        "base_currency": snaps[-1].base_currency if snaps else settings.base_currency,
+        "series": series,
+        "returns": {"d1": None, "d7": None, "d30": None, "inception": None},
+    }
+    if len(snaps) < 2:
+        return result
+
+    flows = _daily_flows(s, user_id)
+
+    def flow_between(start_day: str, end_day: str) -> float:
+        # (start_day, end_day] — gün dizgileri YYYY-MM-DD, sözlük sırası = tarih sırası
+        return sum(v for d, v in flows.items() if start_day < d <= end_day)
+
+    # Zincir halkaları + kümülatif endeks (100'den başlar)
+    index = [100.0]
+    for prev, cur in zip(snaps, snaps[1:]):
+        if prev.total_value <= 0:
+            index.append(index[-1])  # boş portföyden başlayan halka: getiri tanımsız, nötr geç
+            continue
+        r = (cur.total_value - flow_between(prev.day, cur.day)) / prev.total_value - 1.0
+        index.append(index[-1] * (1.0 + r))
+
+    def window_return(days_back: int) -> float | None:
+        cutoff = (
+            date.fromisoformat(snaps[-1].day) - timedelta(days=days_back)
+        ).strftime("%Y-%m-%d")
+        base_i = None
+        for i, sn in enumerate(snaps):
+            if sn.day <= cutoff:
+                base_i = i
+        if base_i is None or index[base_i] <= 0:
+            return None
+        return (index[-1] / index[base_i] - 1.0) * 100.0
+
+    d1 = (index[-1] / index[-2] - 1.0) * 100.0 if index[-2] > 0 else None
+    result["returns"] = {
+        "d1": round(d1, 2) if d1 is not None else None,
+        "d7": (lambda v: round(v, 2) if v is not None else None)(window_return(7)),
+        "d30": (lambda v: round(v, 2) if v is not None else None)(window_return(30)),
+        "inception": round((index[-1] / 100.0 - 1.0) * 100.0, 2),
+    }
+    return result

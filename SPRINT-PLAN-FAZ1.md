@@ -70,6 +70,19 @@ uygulama boş adresle sunucuya yedekledi/geri yükledi ✓
 ⏳ Kalan (yalnız hesap açma): Render "Apply" → adres hazır; sonra ops.
    cron-job.org + Resend + Sentry anahtarları (rehber Bölüm 2-4)
 
+## v0.8 (15 Ağu 2026): GETİRİ HESABI (TWR) ✅ — YAYIN: kullanıcı onayı bekliyor
+Kurulum canlı (alpro-e1w1.onrender.com, 15 Ağu). Yol haritası maddesi
+"valuation history → TWR" tamamlandı:
+✅ valuation_snapshots tablosu: günlük kullanıcı-başına toplam değer + yatırılan
+   (gün Europe/Istanbul; cron ve günün ilk brifingi upsert eder)
+✅ TWR motoru (portfolio/engine.compute_returns): akış-düzeltmeli zincirleme —
+   r_t=(V_t-F_t)/V_{t-1}-1; para yatırmak getiri sayılmaz; 1g/7g/30g/başlangıç
+✅ GET /api/portfolio/history (user-scoped) + get_portfolio_returns aracı
+✅ Brifing "PORTFÖYÜN" bölümüne "Getiri (zaman ağırlıklı)" satırı (≥2 gün kayıt
+   birikince görünür) · Panelde getiri kutusu
+Test: 53/53 · NOT: main'e merge = Render yeniden kurulum = free planda veri
+sıfırlanır → merge öncesi kullanıcıdan yedek onayı alınacak
+
 ## v0.7.1 (14 Ağu 2026): SYNC FAILED TEŞHİSİ + FREE-PLAN UYUMU ✅
 Teşhis: 11 Ağu "Blueprint Sync Failed" e-postasının sebebi render.yaml'daki
 disk bloğu — Render free planda kalıcı disk desteklemez.
