@@ -220,6 +220,44 @@ def verify(token: str, request: Request):
     return resp
 
 
+class TokenLoginIn(BaseModel):
+    token: str = Field(min_length=8, max_length=256)
+
+
+@router.post("/auth/token-login")
+def token_login(payload: TokenLoginIn, request: Request) -> JSONResponse:
+    """Erişim anahtarını BİR KEZ girip kalıcı oturum açma (kurucu).
+
+    Panel eskiden anahtarı yalnızca sayfa içinde tutuyordu — her ziyarette
+    yeniden soruluyordu. Bu uç, anahtar doğruysa magic-link ile aynı çerez
+    oturumunu kurar: aynı cihazda 30 gün boyunca bir daha sorulmaz.
+    Güvenlik değişmez: aynı sır, X-API-Key köprüsüyle eşdeğer."""
+    if not hmac.compare_digest(payload.token, RUNTIME_TOKEN):
+        raise HTTPException(status_code=401, detail="geçersiz erişim anahtarı")
+    with session() as s:
+        user = get_or_create_founder(s)
+        raw_session = secrets.token_urlsafe(32)
+        s.add(
+            AuthSession(
+                user_id=user.id,
+                token_hash=_hash_token(raw_session),
+                expires_at=utcnow() + timedelta(days=settings.session_days),
+            )
+        )
+    resp = JSONResponse({"ok": True, "message": "Giriş yapıldı — bu cihazda hatırlanacak."})
+    forwarded_proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    resp.set_cookie(
+        SESSION_COOKIE,
+        raw_session,
+        max_age=settings.session_days * 24 * 3600,
+        httponly=True,
+        samesite="lax",
+        secure=(forwarded_proto == "https"),
+        path="/",
+    )
+    return resp
+
+
 @router.post("/auth/logout")
 def logout(request: Request) -> JSONResponse:
     raw = request.cookies.get(SESSION_COOKIE)

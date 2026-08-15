@@ -68,7 +68,7 @@ if _SENTRY_DSN:
     except ImportError:  # pragma: no cover — kurulum moduna bağlı
         log.warning("SENTRY_DSN tanımlı ama sentry-sdk kurulu değil (pip install 'alpro[ops]')")
 
-app = FastAPI(title="AL PRO API", version="0.4.0")
+app = FastAPI(title="AL PRO API", version="0.8.0")
 app.include_router(auth_router)
 
 # Tarayıcıdaki AL PRO uygulamasının (file:// dahil) bağlanabilmesi için CORS.
@@ -131,7 +131,7 @@ async def _startup() -> None:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "app": "alpro", "version": "0.4.0", "auth": bool(settings.api_token)}
+    return {"status": "ok", "app": "alpro", "version": "0.8.0", "auth": bool(settings.api_token)}
 
 
 @app.get("/api/tools")
@@ -700,7 +700,19 @@ async function sendLink(){
   }catch(e){ m.textContent = "Hata: " + e.message; }
 }
 async function logout(){ await fetch("/auth/logout",{method:"POST"}); TOKEN=""; location.reload(); }
-function saveTok(){ TOKEN=$("tok").value.trim(); boot(); }
+async function saveTok(){
+  const t = $("tok").value.trim();
+  if(!t) return;
+  try{
+    const r = await fetch("/auth/token-login",{method:"POST",
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify({token:t})});
+    if(r.ok){ TOKEN=""; boot(); return; }  // çerez oturumu kuruldu — bir daha sorulmaz
+    const d = await r.json();
+    $("authMsg").textContent = "Hata: " + (d.detail || r.status);
+    return;
+  }catch(e){ /* ağ hatası → eski başlık yöntemiyle dene */ }
+  TOKEN = t; boot();
+}
 async function load(){
   try{
     const p = await api("/api/portfolio/summary");

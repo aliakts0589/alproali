@@ -137,6 +137,24 @@ def test_request_link_logs_link_on_send_failure(client, caplog, monkeypatch):
     assert TOKEN_RE.findall(caplog.text)  # link loga düştü — giriş kilitlenmedi
 
 
+# ------------------------------------------------- anahtarla kalıcı giriş
+
+def test_token_login_sets_persistent_session(client):
+    client.cookies.clear()
+    # yanlış anahtar → 401, çerez yok
+    r = client.post("/auth/token-login", json={"token": "yanlis-anahtar"})
+    assert r.status_code == 401
+    assert "alpro_session" not in client.cookies
+
+    # doğru anahtar → çerez oturumu; sonraki istekler başlıksız çalışır
+    r = client.post("/auth/token-login", json={"token": "test-admin-token"})
+    assert r.status_code == 200 and r.json()["ok"] is True
+    assert "alpro_session" in client.cookies
+    me = client.get("/api/me")  # X-API-Key YOK — çerez yetiyor
+    assert me.status_code == 200 and me.json()["is_founder"] is True
+    client.cookies.clear()
+
+
 # ------------------------------------------------------ off-site yedek
 
 def test_db_backup_download_founder_only(client, caplog):
