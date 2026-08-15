@@ -9,7 +9,12 @@ services:
   - type: web
     name: alpro
     runtime: docker
+    # Kaynak depo açıkça belirtilir — Blueprint'in depo bağlantısı boş kalırsa
+    # ("source name cannot be empty" hatası) sync bunu kullanır.
+    repo: https://github.com/aliakts0589/alproali
+    branch: main
     plan: free            # ücretsiz plan: 15 dk hareketsizlikte uyur; ilk istek uyandırır
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     envVars:
       - key: ALPRO_API_TOKEN
