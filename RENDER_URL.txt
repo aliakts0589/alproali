@@ -1,3 +1,4 @@
-# Render kurulumu tamamlaninca buraya sunucu adresi yazilacak, ornegin:
-# https://alpro-abcd.onrender.com
-# Adres eklendigi anda .github/workflows/keep-alive.yml sunucuyu uyanik tutmaya baslar.
+# Render kurulumu tamamlaninca ILK satira sunucu adresi yazilacak.
+# Ornek bicim (basina "h-t-t-p-s" gelecek sekilde tam adres):
+#   alpro-abcd.onrender.com  (ornek - gercek adres degil)
+# Adres eklendigi anda keep-alive gorevi sunucuyu uyanik tutmaya baslar.
