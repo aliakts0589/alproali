@@ -1,6 +1,8 @@
 # Render free planda sunucu 15 dk hareketsizlikte uyur. Bu görev 10 dakikada
-# bir /health ucuna istek atarak onu uyanık tutar — cron-job.org'a gerek yok.
-# Adres RENDER_URL.txt dosyasından okunur; dosya boşken görev sessizce geçer.
+# bir /health ucuna istek atarak onu uyanık tutar. Adres RENDER_URL.txt
+# dosyasının yorum olmayan ilk satırından okunur; adres yokken sessizce geçer.
+# Ping başarısız olsa da görev kırmızıya düşmez (bildirim spam'i olmasın diye);
+# gerçek teşhis için probe.yml kullanılır.
 name: keep-alive
 on:
   schedule:
@@ -13,9 +15,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Ping /health (sunucu uyumasin)
         run: |
-          URL=$(grep -o 'https://[^ ]*' RENDER_URL.txt | head -1 || true)
+          URL=$(grep -v '^\s*#' RENDER_URL.txt | grep -o 'https://[^ ]*' | head -1 || true)
           if [ -z "$URL" ]; then
             echo "RENDER_URL.txt icinde adres yok - kurulum tamamlaninca eklenecek."
             exit 0
           fi
-          curl -fsS --max-time 30 "$URL/health" && echo " -> uyanik"
+          if curl -fsS --max-time 60 "${URL%/}/health"; then
+            echo " -> uyanik"
+          else
+            echo "UYARI: ${URL%/}/health yanit vermedi (uyaniyor olabilir ya da adres yanlis)."
+          fi
+          exit 0
