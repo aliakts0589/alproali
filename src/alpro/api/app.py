@@ -33,6 +33,7 @@ from alpro.ai.tools import (
     get_data_status,
     get_market_overview,
     get_news,
+    get_portfolio_returns,
     get_portfolio_summary,
     get_quote,
 )
@@ -50,7 +51,7 @@ from alpro.core.models import (
     UserBackup,
     utcnow,
 )
-from alpro.portfolio.engine import LedgerError, add_transaction
+from alpro.portfolio.engine import LedgerError, add_transaction, record_valuation_snapshot
 from alpro.services.alerts import check_alerts
 
 log = logging.getLogger(__name__)
@@ -146,6 +147,14 @@ def portfolio(user: User = Depends(get_current_user)) -> dict:
         return get_portfolio_summary(s, user.id)
 
 
+@app.get("/api/portfolio/history")
+def portfolio_history(user: User = Depends(get_current_user)) -> dict:
+    """Günlük değer serisi + zaman-ağırlıklı getiri (1g/7g/30g/başlangıç).
+    Kayıtlar cron ve brifing üretiminde birikir — ilk günlerde boş olabilir."""
+    with session() as s:
+        return get_portfolio_returns(s, user.id)
+
+
 # ------------------------------------------------- global market data (auth,
 # ama kullanıcıya göre filtrelenmez — piyasa verisi herkes için aynı)
 
@@ -213,6 +222,10 @@ def briefing(user: User = Depends(get_current_user)) -> dict:
                 "cached": True,
                 "generated_at": rec.created_at.isoformat(),
             }
+    # Günün ilk brifingi: önce değer kaydı düşülür ki getiri satırı bugünü görsün.
+    with _write_lock, session() as s:
+        record_valuation_snapshot(s, user.id, day)
+    with session() as s:
         b = build_briefing(s, user.id)
     with _write_lock, session() as s:
         _upsert_briefing_record(s, user.id, day, b.text)
@@ -277,6 +290,9 @@ def cron_daily() -> dict:
     with session() as s:
         user_ids = list(s.scalars(select(User.id).order_by(User.id)))
     for uid in user_ids:
+        # Önce günün değer kaydı — brifingdeki getiri satırı bugünü de kapsar.
+        with _write_lock, session() as s:
+            record_valuation_snapshot(s, uid, day)
         with session() as s:
             b = build_briefing(s, uid)
         with _write_lock, session() as s:
@@ -693,6 +709,15 @@ async function load(){
       <div class="card tile"><div class="l">Toplam Değer</div><div class="v">${fmt(p.total_value)} ₺</div></div>
       <div class="card tile"><div class="l">Açık K/Z</div><div class="v ${p.total_unrealized_pl>=0?"up":"down"}">${fmt(p.total_unrealized_pl)} ₺</div></div>
       <div class="card tile"><div class="l">Pozisyon</div><div class="v">${p.positions.length}</div></div>`;
+    try{
+      const h = await api("/api/portfolio/history");
+      const r = (h && h.returns) || {};
+      const pick = r.d7!=null ? ["7 günlük getiri", r.d7]
+                 : r.d1!=null ? ["Dünden bugüne", r.d1]
+                 : r.inception!=null ? ["Başlangıçtan beri", r.inception] : null;
+      if(pick) $("tiles").innerHTML += `
+      <div class="card tile"><div class="l">${pick[0]}</div><div class="v ${pick[1]>=0?"up":"down"}">%${fmt(pick[1])}</div></div>`;
+    }catch(e){ /* getiri kaydı birikmeden kutu görünmez */ }
     $("brief").textContent = b.text;
     $("pos").innerHTML =
       "<tr><th>Sembol</th><th class=num>Adet</th><th class=num>Fiyat</th><th class=num>Değer</th><th class=num>K/Z %</th><th class=num>Ağırlık</th></tr>" +

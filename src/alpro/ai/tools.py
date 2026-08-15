@@ -20,7 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from alpro.core.models import ConnectorRun, Instrument, NewsItem
-from alpro.portfolio.engine import portfolio_summary
+from alpro.portfolio.engine import compute_returns, portfolio_summary
 from alpro.pricing.service import latest_fx, latest_quote
 
 
@@ -79,6 +79,12 @@ def get_portfolio_summary(s: Session, user_id: int | None = None) -> dict[str, A
         ],
         "data_notes": ps.data_notes,
     }
+
+
+def get_portfolio_returns(s: Session, user_id: int) -> dict[str, Any]:
+    """Zaman-ağırlıklı getiri (1g/7g/30g/başlangıç) + günlük değer serisi.
+    Kaynak: valuation_snapshots (cron + brifing üretimi doldurur)."""
+    return compute_returns(s, user_id)
 
 
 def get_market_overview(s: Session) -> dict[str, Any]:
@@ -207,6 +213,7 @@ REGISTRY: dict[str, Tool] = {
     t.name: t
     for t in [
         Tool("get_portfolio_summary", "Kullanıcının portföy özeti (değer, K/Z, ağırlıklar).", get_portfolio_summary),
+        Tool("get_portfolio_returns", "Zaman-ağırlıklı getiri (1g/7g/30g/başlangıç) ve değer serisi.", get_portfolio_returns),
         Tool("get_market_overview", "Piyasa görünümü: kurlar ve izlenen enstrümanlar.", get_market_overview),
         Tool("get_quote", "Tek enstrüman için son fiyat.", get_quote),
         Tool("get_news", "İzlenen semboller için en yeni haber başlıkları.", get_news),

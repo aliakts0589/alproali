@@ -24,6 +24,7 @@ from alpro.ai.llm import LLMAdapter
 from alpro.ai.tools import (
     get_data_status,
     get_market_overview,
+    get_portfolio_returns,
     get_portfolio_summary,
     get_watchlist_news,
 )
@@ -177,6 +178,25 @@ def _highlight_lines(portfolio: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _returns_line(returns: dict[str, Any] | None) -> str | None:
+    """TWR getiri satırı — en az iki günlük kayıt birikince görünür."""
+    if not returns:
+        return None
+    r = returns.get("returns") or {}
+    parts = []
+    if r.get("d1") is not None:
+        parts.append(f"dün {fmt_pct(r['d1'])}")
+    if r.get("d7") is not None:
+        parts.append(f"7 gün {fmt_pct(r['d7'])}")
+    if r.get("d30") is not None:
+        parts.append(f"30 gün {fmt_pct(r['d30'])}")
+    if r.get("inception") is not None:
+        parts.append(f"başlangıçtan beri {fmt_pct(r['inception'])}")
+    if not parts:
+        return None
+    return "• Getiri (zaman ağırlıklı): " + " · ".join(parts)
+
+
 def _alert_lines(alerts: list[dict[str, Any]]) -> list[str]:
     """Fired alerts (last 24h) — factual, never directive."""
     lines: list[str] = []
@@ -239,14 +259,16 @@ def build_briefing(
     ]
     news = get_watchlist_news(s, held_bist, now=now)
     fired_alerts = recent_fired_alerts(s, user_id, now=now) if user_id is not None else []
-    # news/alerts ride in the tool payload: number-grounding walks strings too,
-    # so figures inside headlines are auto-whitelisted for the LLM audit.
+    returns = get_portfolio_returns(s, user_id) if user_id is not None else None
+    # news/alerts/returns ride in the tool payload: number-grounding walks
+    # strings too, so figures inside them are auto-whitelisted for the audit.
     payload = {
         "portfolio": portfolio,
         "market": market,
         "status": status,
         "news": news,
         "alerts": fired_alerts,
+        "returns": returns,
     }
 
     sections: list[str] = []
@@ -258,6 +280,9 @@ def build_briefing(
     sections.append("PORTFÖYÜN")
     if portfolio["positions"]:
         sections.extend(_portfolio_lines(portfolio))
+        ret_line = _returns_line(returns)
+        if ret_line:
+            sections.append(ret_line)
     else:
         sections.append("• Henüz işlem kaydı yok. İlk işlemini `alpro demo` ile veya API'den ekleyebilirsin.")
     highlights = _highlight_lines(portfolio)
